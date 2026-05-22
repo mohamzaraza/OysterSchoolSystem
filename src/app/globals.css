@@ -1,0 +1,56 @@
+@import url('https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@400;500;600;700&family=Nunito:wght@300;400;500;600;700&family=Noto+Nastaliq+Urdu:wght@400;500;600;700&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --font-cormorant: 'Cormorant Garamond', serif;
+  --font-nunito: 'Nunito', sans-serif;
+  --font-urdu: 'Noto Nastaliq Urdu', serif;
+}
+
+[dir="rtl"] body,
+[dir="rtl"] .font-body {
+  font-family: var(--font-urdu);
+  line-height: 2;
+}
+
+[dir="rtl"] h1,
+[dir="rtl"] h2,
+[dir="rtl"] h3,
+[dir="rtl"] h4,
+[dir="rtl"] h5,
+[dir="rtl"] .font-heading {
+  font-family: var(--font-urdu);
+  line-height: 2;
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  font-family: var(--font-nunito);
+  background-color: #ffffff;
+  color: #1a1a2e;
+}
+
+h1, h2, h3, h4, h5 {
+  font-family: var(--font-cormorant);
+}
+
+@layer components {
+  .btn-primary {
+    @apply bg-gold text-navy font-body font-semibold px-6 py-3 rounded-sm hover:bg-gold-dark transition-colors duration-200 text-sm tracking-wide uppercase;
+  }
+  .btn-outline {
+    @apply border-2 border-gold text-gold font-body font-semibold px-6 py-3 rounded-sm hover:bg-gold hover:text-navy transition-colors duration-200 text-sm tracking-wide uppercase;
+  }
+  .section-title {
+    @apply font-heading text-4xl md:text-5xl text-navy font-semibold;
+  }
+  .section-subtitle {
+    @apply font-body text-gray-500 text-lg mt-2;
+  }
+}
