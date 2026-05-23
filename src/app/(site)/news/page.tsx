@@ -9,7 +9,6 @@ export default function NewsPage() {
         <p className="font-body text-gray-500 text-lg">
           School news and event coverage coming soon.
         </p>
-        {/* TODO: Add news articles, event recaps, photo galleries */}
       </div>
     </div>
   );

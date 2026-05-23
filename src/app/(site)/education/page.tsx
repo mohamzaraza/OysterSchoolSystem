@@ -9,7 +9,6 @@ export default function EducationPage() {
         <p className="font-body text-gray-500 text-lg">
           Education programs and curriculum details coming soon.
         </p>
-        {/* TODO: Add curriculum breakdown, subjects, grade levels, teaching methodology */}
       </div>
     </div>
   );

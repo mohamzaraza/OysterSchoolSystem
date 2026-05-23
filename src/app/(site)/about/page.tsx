@@ -29,8 +29,6 @@ export default function AboutPage() {
           curiosity, reward creativity, and hold every student to the belief that they are capable
           of extraordinary things.
         </p>
-
-        {/* TODO: Add management team photos, timeline, accreditations */}
       </div>
     </div>
   );

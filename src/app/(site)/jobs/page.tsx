@@ -71,10 +71,7 @@ export default function JobsPage() {
                   </span>
                 </div>
               </div>
-              <a
-                href="mailto:oysterschoolsystem@gmail.com"
-                className="btn-primary"
-              >
+              <a href="/apply" className="btn-primary">
                 Apply Now
               </a>
             </div>

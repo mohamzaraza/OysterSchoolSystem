@@ -9,7 +9,6 @@ export default function ScholarshipPage() {
         <p className="font-body text-gray-500 text-lg">
           Scholarship programs and eligibility details coming soon.
         </p>
-        {/* TODO: Add scholarship types, eligibility criteria, application process */}
       </div>
     </div>
   );
