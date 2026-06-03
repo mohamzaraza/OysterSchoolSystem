@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { Briefcase, MapPin, Clock } from 'lucide-react'
+import { Briefcase, MapPin, Clock, ChevronDown } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
 import { formatJobPostedDate, type JobPosting } from '@/types/job-posting'
 
@@ -9,6 +9,7 @@ export default function JobsPage() {
   const [jobs, setJobs] = useState<JobPosting[]>([])
   const [loading, setLoading] = useState(true)
   const [fetchError, setFetchError] = useState<string | null>(null)
+  const [expandedId, setExpandedId] = useState<string | null>(null)
 
   useEffect(() => {
     supabase
@@ -58,51 +59,67 @@ export default function JobsPage() {
             </p>
           </div>
         ) : (
-          jobs.map((job) => (
-            <div
-              key={job.id}
-              className="bg-white border border-gray-100 rounded-sm shadow-sm p-8 hover:border-gold/40 hover:shadow-md transition-all"
-            >
-              <div className="flex flex-wrap items-start justify-between gap-4 mb-4">
-                <div>
-                  <h2 className="font-heading text-navy text-3xl font-semibold">{job.title}</h2>
-                  <div className="flex flex-wrap gap-3 mt-2">
-                    <span className="flex items-center gap-1 font-body text-sm text-gray-500">
-                      <MapPin size={14} className="text-gold" /> {job.campus}
-                    </span>
-                    <span className="flex items-center gap-1 font-body text-sm text-gray-500">
-                      <Briefcase size={14} className="text-gold" /> {job.employment_type}
-                    </span>
-                    <span className="flex items-center gap-1 font-body text-sm text-gray-500">
-                      <Clock size={14} className="text-gold" /> Posted{' '}
-                      {formatJobPostedDate(job.created_at)}
-                    </span>
-                  </div>
-                </div>
-                <a
-                  href={`/apply?position=${encodeURIComponent(job.title)}`}
-                  className="btn-primary"
+          jobs.map((job) => {
+            const isOpen = expandedId === job.id
+            return (
+              <div
+                key={job.id}
+                className="bg-white border border-gray-100 rounded-sm shadow-sm hover:border-gold/40 hover:shadow-md transition-all"
+              >
+                <button
+                  type="button"
+                  onClick={() => setExpandedId(isOpen ? null : job.id)}
+                  className="w-full text-left px-8 py-6 flex flex-wrap items-center justify-between gap-4"
                 >
-                  Apply Now
-                </a>
+                  <div>
+                    <h2 className="font-heading text-navy text-2xl font-semibold">{job.title}</h2>
+                    <div className="flex flex-wrap gap-3 mt-2">
+                      <span className="flex items-center gap-1 font-body text-sm text-gray-500">
+                        <MapPin size={14} className="text-gold" /> {job.campus}
+                      </span>
+                      <span className="flex items-center gap-1 font-body text-sm text-gray-500">
+                        <Briefcase size={14} className="text-gold" /> {job.employment_type}
+                      </span>
+                      <span className="flex items-center gap-1 font-body text-sm text-gray-500">
+                        <Clock size={14} className="text-gold" /> Posted{' '}
+                        {formatJobPostedDate(job.created_at)}
+                      </span>
+                    </div>
+                  </div>
+                  <ChevronDown
+                    size={20}
+                    className={`text-gold flex-shrink-0 transition-transform duration-200 ${isOpen ? 'rotate-180' : ''}`}
+                  />
+                </button>
+
+                {isOpen && (
+                  <div className="px-8 pb-8 border-t border-gray-100 pt-6">
+                    <p className="font-body text-gray-600 text-sm leading-relaxed mb-4 whitespace-pre-line">
+                      {job.description}
+                    </p>
+                    {job.requirements.length > 0 && (
+                      <div className="mb-6">
+                        <p className="font-body text-navy font-semibold text-sm mb-2">Requirements:</p>
+                        <ul className="space-y-1">
+                          {job.requirements.map((req, i) => (
+                            <li key={i} className="font-body text-gray-500 text-sm flex items-start gap-2">
+                              <span className="text-gold mt-1">✓</span> {req}
+                            </li>
+                          ))}
+                        </ul>
+                      </div>
+                    )}
+                    <a
+                      href={`/apply?position=${encodeURIComponent(job.title)}`}
+                      className="btn-primary inline-block"
+                    >
+                      Apply Now
+                    </a>
+                  </div>
+                )}
               </div>
-              <p className="font-body text-gray-600 text-sm leading-relaxed mb-4 whitespace-pre-line">
-                {job.description}
-              </p>
-              {job.requirements.length > 0 && (
-                <div>
-                  <p className="font-body text-navy font-semibold text-sm mb-2">Requirements:</p>
-                  <ul className="space-y-1">
-                    {job.requirements.map((req, i) => (
-                      <li key={i} className="font-body text-gray-500 text-sm flex items-start gap-2">
-                        <span className="text-gold mt-1">✓</span> {req}
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-              )}
-            </div>
-          ))
+            )
+          })
         )}
       </div>
     </div>
