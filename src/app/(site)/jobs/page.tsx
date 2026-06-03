@@ -8,14 +8,16 @@ import { formatJobPostedDate, type JobPosting } from '@/types/job-posting'
 export default function JobsPage() {
   const [jobs, setJobs] = useState<JobPosting[]>([])
   const [loading, setLoading] = useState(true)
+  const [fetchError, setFetchError] = useState<string | null>(null)
 
   useEffect(() => {
     supabase
       .from('job_postings')
       .select('*')
       .order('created_at', { ascending: false })
-      .then(({ data }) => {
-        if (data) setJobs(data)
+      .then(({ data, error }) => {
+        if (error) setFetchError(error.message)
+        else setJobs(data ?? [])
         setLoading(false)
       })
   }, [])
@@ -38,6 +40,15 @@ export default function JobsPage() {
         {loading ? (
           <div className="flex justify-center py-24">
             <div className="w-7 h-7 border-2 border-gold border-t-transparent rounded-full animate-spin" />
+          </div>
+        ) : fetchError ? (
+          <div className="bg-white border border-red-100 rounded-sm shadow-sm py-16 text-center px-6">
+            <p className="font-heading text-navy text-2xl font-semibold">Unable to load openings</p>
+            <p className="font-body text-gray-500 text-sm mt-2 max-w-md mx-auto">
+              The careers list could not be loaded. If you manage the site, run the grant lines in{' '}
+              <code className="text-xs bg-gray-100 px-1 py-0.5">supabase/job_postings.sql</code> in
+              the Supabase SQL editor.
+            </p>
           </div>
         ) : jobs.length === 0 ? (
           <div className="bg-white border border-gray-100 rounded-sm shadow-sm py-16 text-center">
@@ -75,7 +86,7 @@ export default function JobsPage() {
                   Apply Now
                 </a>
               </div>
-              <p className="font-body text-gray-600 text-sm leading-relaxed mb-4">
+              <p className="font-body text-gray-600 text-sm leading-relaxed mb-4 whitespace-pre-line">
                 {job.description}
               </p>
               {job.requirements.length > 0 && (

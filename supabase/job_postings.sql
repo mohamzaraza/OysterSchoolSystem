@@ -12,6 +12,10 @@ create table if not exists public.job_postings (
 
 alter table public.job_postings enable row level security;
 
+-- Required so the public /jobs page (anon key) can read postings
+grant select on public.job_postings to anon, authenticated;
+grant insert, update, delete on public.job_postings to authenticated;
+
 create policy "Anyone can view job postings"
   on public.job_postings for select
   using (true);

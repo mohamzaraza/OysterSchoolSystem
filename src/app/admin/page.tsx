@@ -68,8 +68,9 @@ export default function AdminPage() {
   const [jobPostings, setJobPostings] = useState<JobPosting[]>([])
   const [jobsLoading, setJobsLoading] = useState(false)
   const [jobForm, setJobForm] = useState<JobFormState>(emptyJobForm)
+  const [editingJobId, setEditingJobId] = useState<string | null>(null)
   const [jobFormError, setJobFormError] = useState<string | null>(null)
-  const [creatingJob, setCreatingJob] = useState(false)
+  const [savingJob, setSavingJob] = useState(false)
   const [deletingJobId, setDeletingJobId] = useState<string | null>(null)
 
   useEffect(() => {
@@ -128,6 +129,7 @@ export default function AdminPage() {
     setApplications([])
     setJobPostings([])
     setJobForm(emptyJobForm)
+    setEditingJobId(null)
   }
 
   async function handleStatusChange(id: string, status: string) {
@@ -141,35 +143,73 @@ export default function AdminPage() {
     setJobForm((prev) => ({ ...prev, [e.target.name]: e.target.value }))
   }
 
-  async function handleCreateJob(e: React.FormEvent) {
-    e.preventDefault()
-    setCreatingJob(true)
-    setJobFormError(null)
+  function jobToForm(job: JobPosting): JobFormState {
+    return {
+      title: job.title,
+      campus: job.campus,
+      employment_type: job.employment_type,
+      description: job.description,
+      requirements: job.requirements.join('\n'),
+    }
+  }
 
-    const requirements = jobForm.requirements
+  function parseRequirements(text: string): string[] {
+    return text
       .split('\n')
       .map((line) => line.trim())
       .filter(Boolean)
+  }
 
-    const { data, error } = await supabase
-      .from('job_postings')
-      .insert({
-        title: jobForm.title.trim(),
-        campus: jobForm.campus.trim(),
-        employment_type: jobForm.employment_type.trim() || 'Full Time',
-        description: jobForm.description.trim(),
-        requirements,
-      })
-      .select()
-      .single()
+  function handleStartEdit(job: JobPosting) {
+    setEditingJobId(job.id)
+    setJobForm(jobToForm(job))
+    setJobFormError(null)
+  }
 
-    if (error) {
-      setJobFormError(error.message)
-    } else if (data) {
-      setJobPostings((prev) => [data, ...prev])
-      setJobForm(emptyJobForm)
+  function handleCancelEdit() {
+    setEditingJobId(null)
+    setJobForm(emptyJobForm)
+    setJobFormError(null)
+  }
+
+  async function handleSaveJob(e: React.FormEvent) {
+    e.preventDefault()
+    setSavingJob(true)
+    setJobFormError(null)
+
+    const payload = {
+      title: jobForm.title.trim(),
+      campus: jobForm.campus.trim(),
+      employment_type: jobForm.employment_type.trim() || 'Full Time',
+      description: jobForm.description.trim(),
+      requirements: parseRequirements(jobForm.requirements),
     }
-    setCreatingJob(false)
+
+    if (editingJobId) {
+      const { data, error } = await supabase
+        .from('job_postings')
+        .update(payload)
+        .eq('id', editingJobId)
+        .select()
+        .single()
+
+      if (error) {
+        setJobFormError(error.message)
+      } else if (data) {
+        setJobPostings((prev) => prev.map((j) => (j.id === editingJobId ? data : j)))
+        handleCancelEdit()
+      }
+    } else {
+      const { data, error } = await supabase.from('job_postings').insert(payload).select().single()
+
+      if (error) {
+        setJobFormError(error.message)
+      } else if (data) {
+        setJobPostings((prev) => [data, ...prev])
+        setJobForm(emptyJobForm)
+      }
+    }
+    setSavingJob(false)
   }
 
   async function handleDeleteJob(id: string, title: string) {
@@ -177,7 +217,10 @@ export default function AdminPage() {
 
     setDeletingJobId(id)
     const { error } = await supabase.from('job_postings').delete().eq('id', id)
-    if (!error) setJobPostings((prev) => prev.filter((j) => j.id !== id))
+    if (!error) {
+      setJobPostings((prev) => prev.filter((j) => j.id !== id))
+      if (editingJobId === id) handleCancelEdit()
+    }
     setDeletingJobId(null)
   }
 
@@ -434,15 +477,21 @@ export default function AdminPage() {
 
         {activeTab === 'jobs' && (
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 items-start">
-            <div className="bg-white border border-gray-100 rounded-sm shadow-sm p-8">
+            <div
+              className={`bg-white border rounded-sm shadow-sm p-8 transition-colors ${
+                editingJobId ? 'border-gold/50' : 'border-gray-100'
+              }`}
+            >
               <h2 className="font-heading text-navy text-2xl font-semibold mb-1">
-                Post a New Job
+                {editingJobId ? 'Edit Job Posting' : 'Post a New Job'}
               </h2>
               <p className="font-body text-gray-400 text-sm mb-6">
-                New postings appear on the public careers page and in the apply form.
+                {editingJobId
+                  ? 'Update this posting on the careers page and apply form.'
+                  : 'New postings appear on the public careers page and in the apply form.'}
               </p>
 
-              <form onSubmit={handleCreateJob} className="space-y-5">
+              <form onSubmit={handleSaveJob} className="space-y-5">
                 <div className="space-y-1.5">
                   <label className="font-body text-navy text-sm font-semibold">Job Title</label>
                   <input
@@ -513,13 +562,29 @@ export default function AdminPage() {
                   </p>
                 )}
 
-                <button
-                  type="submit"
-                  disabled={creatingJob}
-                  className="btn-primary w-full disabled:opacity-60 disabled:cursor-not-allowed"
-                >
-                  {creatingJob ? 'Publishing…' : 'Publish Job Posting'}
-                </button>
+                <div className="flex flex-col sm:flex-row gap-3">
+                  <button
+                    type="submit"
+                    disabled={savingJob}
+                    className="btn-primary flex-1 disabled:opacity-60 disabled:cursor-not-allowed"
+                  >
+                    {savingJob
+                      ? 'Saving…'
+                      : editingJobId
+                        ? 'Save Changes'
+                        : 'Publish Job Posting'}
+                  </button>
+                  {editingJobId && (
+                    <button
+                      type="button"
+                      onClick={handleCancelEdit}
+                      disabled={savingJob}
+                      className="btn-outline flex-1 disabled:opacity-60"
+                    >
+                      Cancel
+                    </button>
+                  )}
+                </div>
               </form>
             </div>
 
@@ -544,7 +609,11 @@ export default function AdminPage() {
                   {jobPostings.map((job) => (
                     <div
                       key={job.id}
-                      className="bg-white border border-gray-100 rounded-sm shadow-sm p-6"
+                      className={`bg-white border rounded-sm shadow-sm p-6 transition-colors ${
+                        editingJobId === job.id
+                          ? 'border-gold/50 ring-1 ring-gold/20'
+                          : 'border-gray-100'
+                      }`}
                     >
                       <div className="flex flex-wrap items-start justify-between gap-3">
                         <div>
@@ -556,16 +625,26 @@ export default function AdminPage() {
                             {formatJobPostedDate(job.created_at)}
                           </p>
                         </div>
-                        <button
-                          type="button"
-                          onClick={() => handleDeleteJob(job.id, job.title)}
-                          disabled={deletingJobId === job.id}
-                          className="font-body text-xs font-semibold text-red-600 border border-red-200 rounded-sm px-3 py-1.5 hover:bg-red-50 transition-colors disabled:opacity-50"
-                        >
-                          {deletingJobId === job.id ? 'Removing…' : 'Remove'}
-                        </button>
+                        <div className="flex flex-wrap gap-2">
+                          <button
+                            type="button"
+                            onClick={() => handleStartEdit(job)}
+                            disabled={deletingJobId === job.id || savingJob}
+                            className="font-body text-xs font-semibold text-navy border border-gray-200 rounded-sm px-3 py-1.5 hover:border-gold/50 hover:bg-cream transition-colors disabled:opacity-50"
+                          >
+                            {editingJobId === job.id ? 'Editing…' : 'Edit'}
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => handleDeleteJob(job.id, job.title)}
+                            disabled={deletingJobId === job.id || savingJob}
+                            className="font-body text-xs font-semibold text-red-600 border border-red-200 rounded-sm px-3 py-1.5 hover:bg-red-50 transition-colors disabled:opacity-50"
+                          >
+                            {deletingJobId === job.id ? 'Removing…' : 'Remove'}
+                          </button>
+                        </div>
                       </div>
-                      <p className="font-body text-gray-600 text-sm mt-3 line-clamp-3">
+                      <p className="font-body text-gray-600 text-sm mt-3 line-clamp-6 whitespace-pre-line">
                         {job.description}
                       </p>
                       {job.requirements.length > 0 && (
