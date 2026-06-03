@@ -18,7 +18,17 @@ type Application = {
   status: string
 }
 
-type AdminTab = 'applications' | 'jobs'
+type AdminTab = 'applications' | 'admissions' | 'jobs'
+
+type AdmissionEnquiry = {
+  id: string
+  created_at: string
+  student_name: string
+  level: string
+  parent_name: string
+  phone: string
+  status: string
+}
 
 type JobFormState = {
   title: string
@@ -40,6 +50,14 @@ const STATUS_STYLES: Record<string, string> = {
   pending: 'bg-amber-50 text-amber-700 border-amber-200',
   shortlisted: 'bg-emerald-50 text-emerald-700 border-emerald-200',
   rejected: 'bg-red-50 text-red-600 border-red-200',
+}
+
+const ADMISSION_STATUS_STYLES: Record<string, string> = {
+  New: 'bg-blue-50 text-blue-700 border-blue-200',
+  Contacted: 'bg-amber-50 text-amber-700 border-amber-200',
+  'Visit Scheduled': 'bg-purple-50 text-purple-700 border-purple-200',
+  Enrolled: 'bg-emerald-50 text-emerald-700 border-emerald-200',
+  Rejected: 'bg-red-50 text-red-600 border-red-200',
 }
 
 const inputClass =
@@ -72,6 +90,10 @@ export default function AdminPage() {
   const [jobFormError, setJobFormError] = useState<string | null>(null)
   const [savingJob, setSavingJob] = useState(false)
   const [deletingJobId, setDeletingJobId] = useState<string | null>(null)
+  const [deletingAppId, setDeletingAppId] = useState<string | null>(null)
+  const [admissions, setAdmissions] = useState<AdmissionEnquiry[]>([])
+  const [admissionsLoading, setAdmissionsLoading] = useState(false)
+  const [deletingEnquiryId, setDeletingEnquiryId] = useState<string | null>(null)
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
@@ -92,6 +114,7 @@ export default function AdminPage() {
     if (session) {
       fetchApplications()
       fetchJobPostings()
+      fetchAdmissions()
     }
   }, [session])
 
@@ -103,6 +126,29 @@ export default function AdminPage() {
       .order('created_at', { ascending: false })
     if (data) setApplications(data)
     setAppsLoading(false)
+  }
+
+  async function fetchAdmissions() {
+    setAdmissionsLoading(true)
+    const { data } = await supabase
+      .from('admissions')
+      .select('id, created_at, student_name, level, parent_name, phone, status')
+      .order('created_at', { ascending: false })
+    if (data) setAdmissions(data)
+    setAdmissionsLoading(false)
+  }
+
+  async function handleAdmissionStatusChange(id: string, status: string) {
+    setAdmissions((prev) => prev.map((a) => (a.id === id ? { ...a, status } : a)))
+    await supabase.from('admissions').update({ status }).eq('id', id)
+  }
+
+  async function handleDeleteEnquiry(id: string, name: string) {
+    if (!window.confirm(`Remove ${name}'s enquiry? This cannot be undone.`)) return
+    setDeletingEnquiryId(id)
+    const { error } = await supabase.from('admissions').delete().eq('id', id)
+    if (!error) setAdmissions((prev) => prev.filter((a) => a.id !== id))
+    setDeletingEnquiryId(null)
   }
 
   async function fetchJobPostings() {
@@ -135,6 +181,14 @@ export default function AdminPage() {
   async function handleStatusChange(id: string, status: string) {
     setApplications((prev) => prev.map((a) => (a.id === id ? { ...a, status } : a)))
     await supabase.from('applications').update({ status }).eq('id', id)
+  }
+
+  async function handleDeleteApp(id: string, name: string) {
+    if (!window.confirm(`Remove ${name}'s application? This cannot be undone.`)) return
+    setDeletingAppId(id)
+    const { error } = await supabase.from('applications').delete().eq('id', id)
+    if (!error) setApplications((prev) => prev.filter((a) => a.id !== id))
+    setDeletingAppId(null)
   }
 
   function handleJobFormChange(
@@ -325,6 +379,9 @@ export default function AdminPage() {
             <button type="button" onClick={() => setActiveTab('applications')} className={tabClass('applications')}>
               Applications
             </button>
+            <button type="button" onClick={() => setActiveTab('admissions')} className={tabClass('admissions')}>
+              Admissions
+            </button>
             <button type="button" onClick={() => setActiveTab('jobs')} className={tabClass('jobs')}>
               Job Postings
             </button>
@@ -377,6 +434,7 @@ export default function AdminPage() {
                           'Date Applied',
                           'Status',
                           'Resume',
+                          '',
                         ].map((h) => (
                           <th
                             key={h}
@@ -464,6 +522,140 @@ export default function AdminPage() {
                             ) : (
                               <span className="font-body text-gray-300 text-xs">—</span>
                             )}
+                          </td>
+                          <td className="px-5 py-4">
+                            <button
+                              type="button"
+                              onClick={() => handleDeleteApp(app.id, app.full_name)}
+                              disabled={deletingAppId === app.id}
+                              title="Remove application"
+                              className="w-6 h-6 flex items-center justify-center rounded-full border border-red-200 text-red-400 hover:bg-red-50 hover:border-red-400 hover:text-red-600 transition-colors disabled:opacity-40"
+                            >
+                              <svg width="10" height="2" viewBox="0 0 10 2" fill="currentColor">
+                                <rect width="10" height="2" rx="1" />
+                              </svg>
+                            </button>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            )}
+          </>
+        )}
+
+        {activeTab === 'admissions' && (
+          <>
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-10">
+              {[
+                { label: 'Total', value: admissions.length, color: 'text-navy' },
+                { label: 'New', value: admissions.filter((a) => a.status === 'New').length, color: 'text-blue-600' },
+                { label: 'Enrolled', value: admissions.filter((a) => a.status === 'Enrolled').length, color: 'text-emerald-600' },
+                { label: 'Rejected', value: admissions.filter((a) => a.status === 'Rejected').length, color: 'text-red-500' },
+              ].map((s) => (
+                <div key={s.label} className="bg-white border border-gray-100 rounded-sm shadow-sm px-6 py-5">
+                  <p className="font-body text-gray-400 text-xs uppercase tracking-widest">{s.label}</p>
+                  <p className={`font-heading text-5xl font-semibold mt-1 ${s.color}`}>{s.value}</p>
+                </div>
+              ))}
+            </div>
+
+            {admissionsLoading ? (
+              <div className="flex justify-center py-24">
+                <Spinner />
+              </div>
+            ) : admissions.length === 0 ? (
+              <div className="bg-white border border-gray-100 rounded-sm shadow-sm py-24 text-center">
+                <p className="font-heading text-navy text-3xl font-semibold">No enquiries yet</p>
+                <p className="font-body text-gray-400 text-sm mt-2">
+                  Submitted admissions enquiries will appear here.
+                </p>
+              </div>
+            ) : (
+              <div className="bg-white border border-gray-100 rounded-sm shadow-sm overflow-hidden">
+                <div className="overflow-x-auto">
+                  <table className="w-full text-left min-w-[860px]">
+                    <thead>
+                      <tr className="bg-navy">
+                        {['Student Name', 'Level', 'Parent Name', 'Phone', 'Date Submitted', 'Status', ''].map((h) => (
+                          <th
+                            key={h}
+                            className="font-body text-xs tracking-widest uppercase font-semibold text-white px-5 py-4 whitespace-nowrap"
+                          >
+                            {h}
+                          </th>
+                        ))}
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-gray-50">
+                      {admissions.map((enq) => (
+                        <tr key={enq.id} className="hover:bg-cream/60 transition-colors">
+                          <td className="px-5 py-4">
+                            <p className="font-body font-semibold text-navy text-sm">
+                              {enq.student_name}
+                            </p>
+                          </td>
+                          <td className="px-5 py-4">
+                            <p className="font-body text-gray-700 text-sm whitespace-nowrap">
+                              {enq.level}
+                            </p>
+                          </td>
+                          <td className="px-5 py-4">
+                            <p className="font-body text-gray-700 text-sm">{enq.parent_name}</p>
+                          </td>
+                          <td className="px-5 py-4">
+                            <p className="font-body text-gray-500 text-sm whitespace-nowrap">
+                              {enq.phone}
+                            </p>
+                          </td>
+                          <td className="px-5 py-4 whitespace-nowrap">
+                            <p className="font-body text-gray-500 text-sm">
+                              {new Date(enq.created_at).toLocaleDateString('en-GB', {
+                                day: 'numeric',
+                                month: 'short',
+                                year: 'numeric',
+                              })}
+                            </p>
+                          </td>
+                          <td className="px-5 py-4">
+                            <div className="relative inline-block">
+                              <select
+                                value={enq.status}
+                                onChange={(e) => handleAdmissionStatusChange(enq.id, e.target.value)}
+                                className={`appearance-none border rounded-sm pl-3 pr-7 py-1.5 font-body text-xs font-semibold cursor-pointer focus:outline-none focus:ring-1 focus:ring-gold transition-colors ${
+                                  ADMISSION_STATUS_STYLES[enq.status] ?? 'bg-gray-50 text-gray-600 border-gray-200'
+                                }`}
+                              >
+                                <option>New</option>
+                                <option>Contacted</option>
+                                <option>Visit Scheduled</option>
+                                <option>Enrolled</option>
+                                <option>Rejected</option>
+                              </select>
+                              <svg
+                                className="pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 w-3 h-3 opacity-50"
+                                fill="none"
+                                stroke="currentColor"
+                                viewBox="0 0 24 24"
+                              >
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M19 9l-7 7-7-7" />
+                              </svg>
+                            </div>
+                          </td>
+                          <td className="px-5 py-4">
+                            <button
+                              type="button"
+                              onClick={() => handleDeleteEnquiry(enq.id, enq.student_name)}
+                              disabled={deletingEnquiryId === enq.id}
+                              title="Remove enquiry"
+                              className="w-6 h-6 flex items-center justify-center rounded-full border border-red-200 text-red-400 hover:bg-red-50 hover:border-red-400 hover:text-red-600 transition-colors disabled:opacity-40"
+                            >
+                              <svg width="10" height="2" viewBox="0 0 10 2" fill="currentColor">
+                                <rect width="10" height="2" rx="1" />
+                              </svg>
+                            </button>
                           </td>
                         </tr>
                       ))}

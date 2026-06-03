@@ -45,7 +45,7 @@ export default function Hero() {
             <Link href="/about" className="btn-primary">
               {tx.cta1}
             </Link>
-            <Link href="/contact" className="btn-outline">
+            <Link href="/admissions" className="btn-outline">
               {tx.cta2}
             </Link>
           </div>

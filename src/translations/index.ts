@@ -58,22 +58,7 @@ const translations = {
       admissionsTitle: "Admissions 2026",
       admissionsBody: "Secure your child's place at Oyster School System today.",
       applyNow: "Apply Now",
-      updates: [
-        {
-          title: "Career Opportunity: Math & Physics Teachers",
-          date: "May 2026",
-          type: "Job",
-          excerpt: "We are looking for qualified and passionate Math and Physics teachers for our High School campus. Competitive salary offered.",
-          href: "/jobs",
-        },
-        {
-          title: "Urdu Teacher Position Available",
-          date: "April 2026",
-          type: "Job",
-          excerpt: "Applications are open for an experienced Urdu language teacher. Join our dedicated team and make a difference.",
-          href: "/jobs",
-        },
-      ],
+      updates: [],
       announcements: [
         { title: "Annual Sports Day — Registration Open", date: "June 5, 2026", icon: "🏅" },
         { title: "Summer Camp Enrollment Now Live", date: "June 15, 2026", icon: "⛺" },
@@ -185,22 +170,7 @@ const translations = {
       admissionsTitle: "داخلے ۲۰۲۶",
       admissionsBody: "آج ہی آئسٹر اسکول سسٹم میں اپنے بچے کی جگہ محفوظ کریں۔",
       applyNow: "ابھی درخواست دیں",
-      updates: [
-        {
-          title: "ملازمت کا موقع: ریاضی اور طبیعیات کے اساتذہ",
-          date: "مئی ۲۰۲۶",
-          type: "ملازمت",
-          excerpt: "ہم ہائی اسکول کیمپس کے لیے قابل اور پُرجوش ریاضی اور طبیعیات کے اساتذہ کی تلاش میں ہیں۔ مسابقتی تنخواہ پیش کی جائے گی۔",
-          href: "/jobs",
-        },
-        {
-          title: "اردو ٹیچر کی آسامی دستیاب ہے",
-          date: "اپریل ۲۰۲۶",
-          type: "ملازمت",
-          excerpt: "تجربہ کار اردو زبان کے استاد کے لیے درخواستیں کھلی ہیں۔ ہماری مخلص ٹیم میں شامل ہوں اور فرق ڈالیں۔",
-          href: "/jobs",
-        },
-      ],
+      updates: [],
       announcements: [
         { title: "سالانہ کھیلوں کا دن — رجسٹریشن کھلی ہے", date: "۵ جون ۲۰۲۶", icon: "🏅" },
         { title: "سمر کیمپ داخلہ شروع ہو گیا", date: "۱۵ جون ۲۰۲۶", icon: "⛺" },

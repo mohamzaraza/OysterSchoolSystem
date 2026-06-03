@@ -2,7 +2,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
-import { Menu, X } from "lucide-react";
+import { Menu, X, ClipboardList } from "lucide-react";
 import logoImg from "@/assets/website-logo-one.png";
 import { useLang } from "@/context/LanguageContext";
 import { useT } from "@/translations";
@@ -55,8 +55,9 @@ export default function Navbar() {
                 {link.label}
               </Link>
             ))}
-            <Link href="/contact" className="btn-primary ml-4">
-              {tx.contact}
+            <Link href="/admissions" className="btn-primary ml-4 flex items-center gap-1.5">
+              <ClipboardList size={15} />
+              Online Admissions
             </Link>
             {/* Language toggle */}
             <button
@@ -101,8 +102,9 @@ export default function Navbar() {
               {link.label}
             </Link>
           ))}
-          <Link href="/contact" className="btn-primary block text-center mt-4">
-            {tx.contact}
+          <Link href="/admissions" className="btn-primary flex items-center justify-center gap-1.5 mt-4">
+            <ClipboardList size={15} />
+            Online Admissions
           </Link>
         </div>
       )}
