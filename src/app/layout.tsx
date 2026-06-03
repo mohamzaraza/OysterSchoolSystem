@@ -7,14 +7,9 @@ export const metadata: Metadata = {
     "Equipping every learner with modern, in-demand skills for a better future. Two campuses in PWD, Islamabad.",
   keywords: "Oyster School System, PWD school, Islamabad school, Pakistan education",
   icons: {
-    icon: [
-      { url: "/favicon.ico" },
-      { url: "/favicon-96x96.png", sizes: "96x96", type: "image/png" },
-      { url: "/favicon.svg", type: "image/svg+xml" },
-    ],
-    apple: [
-      { url: "/apple-touch-icon.png" },
-    ],
+    icon: '/favicon.ico',
+    shortcut: '/favicon-96x96.png',
+    apple: '/apple-touch-icon.png',
   },
 };
 
