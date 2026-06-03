@@ -1,9 +1,8 @@
 'use client'
 
-import { useState } from 'react'
+import { useEffect, useState, Suspense } from 'react'
+import { useSearchParams } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
-
-const POSITIONS = ['Math & Physics Teacher', 'Urdu Language Teacher']
 
 type FormState = {
   full_name: string
@@ -26,12 +25,31 @@ const initialForm: FormState = {
 const inputClass =
   'w-full border border-gray-200 rounded-sm px-4 py-3 font-body text-sm text-gray-700 placeholder-gray-400 focus:outline-none focus:border-gold transition-colors'
 
-export default function ApplyPage() {
+function ApplyForm() {
+  const searchParams = useSearchParams()
   const [form, setForm] = useState<FormState>(initialForm)
+  const [positions, setPositions] = useState<string[]>([])
+  const [positionsLoading, setPositionsLoading] = useState(true)
   const [resume, setResume] = useState<File | null>(null)
   const [submitting, setSubmitting] = useState(false)
   const [submitted, setSubmitted] = useState(false)
   const [error, setError] = useState<string | null>(null)
+
+  useEffect(() => {
+    supabase
+      .from('job_postings')
+      .select('title')
+      .order('created_at', { ascending: false })
+      .then(({ data }) => {
+        const titles = (data ?? []).map((row) => row.title)
+        setPositions(titles)
+        const fromUrl = searchParams.get('position')
+        if (fromUrl && titles.includes(fromUrl)) {
+          setForm((prev) => ({ ...prev, position: fromUrl }))
+        }
+        setPositionsLoading(false)
+      })
+  }, [searchParams])
 
   function handleChange(
     e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>
@@ -175,29 +193,46 @@ export default function ApplyPage() {
             <label htmlFor="position" className="font-body text-navy font-semibold text-sm">
               Position Applying For <span className="text-gold">*</span>
             </label>
-            <div className="relative">
-              <select
-                id="position"
-                name="position"
-                required
-                value={form.position}
-                onChange={handleChange}
-                className={`${inputClass} appearance-none pr-10 bg-white`}
-              >
-                <option value="" disabled>Select a position</option>
-                {POSITIONS.map((p) => (
-                  <option key={p} value={p}>{p}</option>
-                ))}
-              </select>
-              <svg
-                className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gold"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-              >
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-              </svg>
-            </div>
+            {positionsLoading ? (
+              <p className="font-body text-gray-400 text-sm">Loading positions…</p>
+            ) : positions.length === 0 ? (
+              <p className="font-body text-sm text-amber-700 bg-amber-50 border border-amber-100 rounded-sm px-4 py-3">
+                There are no open positions at the moment. Please check the careers page later.
+              </p>
+            ) : (
+              <div className="relative">
+                <select
+                  id="position"
+                  name="position"
+                  required
+                  value={form.position}
+                  onChange={handleChange}
+                  className={`${inputClass} appearance-none pr-10 bg-white`}
+                >
+                  <option value="" disabled>
+                    Select a position
+                  </option>
+                  {positions.map((p) => (
+                    <option key={p} value={p}>
+                      {p}
+                    </option>
+                  ))}
+                </select>
+                <svg
+                  className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gold"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M19 9l-7 7-7-7"
+                  />
+                </svg>
+              </div>
+            )}
           </div>
 
           <div className="space-y-2">
@@ -242,8 +277,18 @@ export default function ApplyPage() {
                   : 'border-gray-200 hover:border-gold/50 text-gray-500'
               }`}
             >
-              <svg className="w-5 h-5 text-gold flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
+              <svg
+                className="w-5 h-5 text-gold flex-shrink-0"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={1.5}
+                  d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"
+                />
               </svg>
               <span className="font-body text-sm truncate max-w-xs">
                 {resume ? resume.name : 'Upload PDF resume — click to browse'}
@@ -269,7 +314,7 @@ export default function ApplyPage() {
 
           <button
             type="submit"
-            disabled={submitting}
+            disabled={submitting || positions.length === 0}
             className="btn-primary w-full disabled:opacity-60 disabled:cursor-not-allowed"
           >
             {submitting ? 'Submitting…' : 'Submit Application'}
@@ -277,5 +322,19 @@ export default function ApplyPage() {
         </form>
       </div>
     </div>
+  )
+}
+
+export default function ApplyPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="min-h-screen flex items-center justify-center bg-cream">
+          <div className="w-7 h-7 border-2 border-gold border-t-transparent rounded-full animate-spin" />
+        </div>
+      }
+    >
+      <ApplyForm />
+    </Suspense>
   )
 }
