@@ -112,6 +112,7 @@ export default function AdminPage() {
   const [deletingJobId, setDeletingJobId] = useState<string | null>(null)
   const [deletingAppId, setDeletingAppId] = useState<string | null>(null)
   const [appDeleteError, setAppDeleteError] = useState<string | null>(null)
+  const [viewingCoverLetter, setViewingCoverLetter] = useState<Application | null>(null)
   const [admissions, setAdmissions] = useState<AdmissionEnquiry[]>([])
   const [admissionsLoading, setAdmissionsLoading] = useState(false)
   const [deletingEnquiryId, setDeletingEnquiryId] = useState<string | null>(null)
@@ -535,7 +536,7 @@ export default function AdminPage() {
             ) : (
               <div className="bg-white border border-gray-100 rounded-sm shadow-sm overflow-hidden">
                 <div className="overflow-x-auto">
-                  <table className="w-full text-left min-w-[860px]">
+                  <table className="w-full text-left min-w-[980px]">
                     <thead>
                       <tr className="bg-navy">
                         {[
@@ -545,6 +546,7 @@ export default function AdminPage() {
                           'Experience',
                           'Date Applied',
                           'Status',
+                          'Cover Letter',
                           'Resume',
                           '',
                         ].map((h) => (
@@ -620,6 +622,19 @@ export default function AdminPage() {
                                 />
                               </svg>
                             </div>
+                          </td>
+                          <td className="px-5 py-4">
+                            {app.cover_letter ? (
+                              <button
+                                type="button"
+                                onClick={() => setViewingCoverLetter(app)}
+                                className="font-body text-xs font-semibold text-gold hover:text-gold-dark transition-colors whitespace-nowrap"
+                              >
+                                Read letter
+                              </button>
+                            ) : (
+                              <span className="font-body text-gray-300 text-xs">—</span>
+                            )}
                           </td>
                           <td className="px-5 py-4">
                             {app.resume_url ? (
@@ -1110,6 +1125,44 @@ export default function AdminPage() {
           </div>
         )}
       </div>
+
+      {viewingCoverLetter && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-navy/60"
+          onClick={() => setViewingCoverLetter(null)}
+        >
+          <div
+            className="bg-white rounded-sm shadow-xl w-full max-w-lg max-h-[85vh] flex flex-col"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="px-6 py-5 border-b border-gray-100">
+              <p className="font-body text-gold text-xs tracking-widest uppercase font-semibold">
+                Cover Letter
+              </p>
+              <h3 className="font-heading text-navy text-xl font-semibold mt-1">
+                {viewingCoverLetter.full_name}
+              </h3>
+              <p className="font-body text-gray-500 text-sm mt-0.5">
+                {viewingCoverLetter.position}
+              </p>
+            </div>
+            <div className="px-6 py-5 overflow-y-auto flex-1">
+              <p className="font-body text-gray-700 text-sm leading-relaxed whitespace-pre-line">
+                {viewingCoverLetter.cover_letter}
+              </p>
+            </div>
+            <div className="px-6 py-4 border-t border-gray-100 flex justify-end">
+              <button
+                type="button"
+                onClick={() => setViewingCoverLetter(null)}
+                className="btn-primary text-xs"
+              >
+                Close
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
