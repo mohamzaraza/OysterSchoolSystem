@@ -18,7 +18,7 @@ type Application = {
   status: string
 }
 
-type AdminTab = 'applications' | 'admissions' | 'jobs'
+type AdminTab = 'applications' | 'admissions' | 'summer' | 'jobs'
 
 type AdmissionEnquiry = {
   id: string
@@ -27,6 +27,19 @@ type AdmissionEnquiry = {
   level: string
   parent_name: string
   phone: string
+  status: string
+}
+
+type SummerEnrollment = {
+  id: string
+  created_at: string
+  student_name: string
+  grade: string
+  parent_name: string
+  phone: string
+  email: string | null
+  preferred_campus: string
+  message: string | null
   status: string
 }
 
@@ -50,6 +63,13 @@ const STATUS_STYLES: Record<string, string> = {
   pending: 'bg-amber-50 text-amber-700 border-amber-200',
   shortlisted: 'bg-emerald-50 text-emerald-700 border-emerald-200',
   rejected: 'bg-red-50 text-red-600 border-red-200',
+}
+
+const SUMMER_STATUS_STYLES: Record<string, string> = {
+  New: 'bg-blue-50 text-blue-700 border-blue-200',
+  Contacted: 'bg-amber-50 text-amber-700 border-amber-200',
+  Enrolled: 'bg-emerald-50 text-emerald-700 border-emerald-200',
+  Rejected: 'bg-red-50 text-red-600 border-red-200',
 }
 
 const ADMISSION_STATUS_STYLES: Record<string, string> = {
@@ -91,9 +111,14 @@ export default function AdminPage() {
   const [savingJob, setSavingJob] = useState(false)
   const [deletingJobId, setDeletingJobId] = useState<string | null>(null)
   const [deletingAppId, setDeletingAppId] = useState<string | null>(null)
+  const [appDeleteError, setAppDeleteError] = useState<string | null>(null)
   const [admissions, setAdmissions] = useState<AdmissionEnquiry[]>([])
   const [admissionsLoading, setAdmissionsLoading] = useState(false)
   const [deletingEnquiryId, setDeletingEnquiryId] = useState<string | null>(null)
+  const [summerEnrollments, setSummerEnrollments] = useState<SummerEnrollment[]>([])
+  const [summerLoading, setSummerLoading] = useState(false)
+  const [summerFetchError, setSummerFetchError] = useState<string | null>(null)
+  const [deletingSummerId, setDeletingSummerId] = useState<string | null>(null)
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
@@ -115,6 +140,7 @@ export default function AdminPage() {
       fetchApplications()
       fetchJobPostings()
       fetchAdmissions()
+      fetchSummerEnrollments()
     }
   }, [session])
 
@@ -145,10 +171,63 @@ export default function AdminPage() {
 
   async function handleDeleteEnquiry(id: string, name: string) {
     if (!window.confirm(`Remove ${name}'s enquiry? This cannot be undone.`)) return
+
     setDeletingEnquiryId(id)
-    const { error } = await supabase.from('admissions').delete().eq('id', id)
-    if (!error) setAdmissions((prev) => prev.filter((a) => a.id !== id))
+    const { data, error } = await supabase
+      .from('admissions')
+      .delete()
+      .eq('id', id)
+      .select('id')
+
+    if (!error && data?.length) {
+      setAdmissions((prev) => prev.filter((a) => a.id !== id))
+    }
+
     setDeletingEnquiryId(null)
+  }
+
+  useEffect(() => {
+    if (session && activeTab === 'summer') fetchSummerEnrollments()
+  }, [session, activeTab])
+
+  async function fetchSummerEnrollments() {
+    setSummerLoading(true)
+    setSummerFetchError(null)
+    const { data, error } = await supabase
+      .from('summer_enrollments')
+      .select(
+        'id, created_at, student_name, grade, parent_name, phone, email, preferred_campus, message, status'
+      )
+      .order('created_at', { ascending: false })
+
+    if (error) {
+      setSummerFetchError(error.message)
+      setSummerEnrollments([])
+    } else {
+      setSummerEnrollments(data ?? [])
+    }
+    setSummerLoading(false)
+  }
+
+  async function handleSummerStatusChange(id: string, status: string) {
+    setSummerEnrollments((prev) => prev.map((e) => (e.id === id ? { ...e, status } : e)))
+    await supabase.from('summer_enrollments').update({ status }).eq('id', id)
+  }
+
+  async function handleDeleteSummer(id: string, name: string) {
+    if (!window.confirm(`Remove ${name}'s summer enrollment? This cannot be undone.`)) return
+
+    setDeletingSummerId(id)
+    const { data, error } = await supabase
+      .from('summer_enrollments')
+      .delete()
+      .eq('id', id)
+      .select('id')
+
+    if (!error && data?.length) {
+      setSummerEnrollments((prev) => prev.filter((e) => e.id !== id))
+    }
+    setDeletingSummerId(null)
   }
 
   async function fetchJobPostings() {
@@ -173,6 +252,8 @@ export default function AdminPage() {
   async function handleLogout() {
     await supabase.auth.signOut()
     setApplications([])
+    setAdmissions([])
+    setSummerEnrollments([])
     setJobPostings([])
     setJobForm(emptyJobForm)
     setEditingJobId(null)
@@ -185,9 +266,26 @@ export default function AdminPage() {
 
   async function handleDeleteApp(id: string, name: string) {
     if (!window.confirm(`Remove ${name}'s application? This cannot be undone.`)) return
+
     setDeletingAppId(id)
-    const { error } = await supabase.from('applications').delete().eq('id', id)
-    if (!error) setApplications((prev) => prev.filter((a) => a.id !== id))
+    setAppDeleteError(null)
+
+    const { data, error } = await supabase
+      .from('applications')
+      .delete()
+      .eq('id', id)
+      .select('id')
+
+    if (error) {
+      setAppDeleteError(`Could not delete application: ${error.message}`)
+    } else if (!data?.length) {
+      setAppDeleteError(
+        'Application was not deleted. Sign in as admin and ensure delete permissions are enabled in Supabase (see supabase/admin_delete_policies.sql).'
+      )
+    } else {
+      setApplications((prev) => prev.filter((a) => a.id !== id))
+    }
+
     setDeletingAppId(null)
   }
 
@@ -359,7 +457,7 @@ export default function AdminPage() {
   ]
 
   const tabClass = (tab: AdminTab) =>
-    `font-body text-sm font-semibold px-4 py-2 rounded-sm transition-colors ${
+    `font-body text-sm font-semibold px-4 py-2 rounded-sm transition-colors inline-flex items-center gap-1 ${
       activeTab === tab
         ? 'bg-gold text-navy'
         : 'text-white/80 hover:text-white hover:bg-white/10'
@@ -382,6 +480,14 @@ export default function AdminPage() {
             <button type="button" onClick={() => setActiveTab('admissions')} className={tabClass('admissions')}>
               Admissions
             </button>
+            <button type="button" onClick={() => setActiveTab('summer')} className={tabClass('summer')}>
+              Summer Enrollments
+              {summerEnrollments.filter((e) => e.status === 'New').length > 0 && (
+                <span className="ml-1.5 inline-flex items-center justify-center min-w-[1.25rem] h-5 px-1 rounded-full bg-navy text-gold text-[10px] font-bold">
+                  {summerEnrollments.filter((e) => e.status === 'New').length}
+                </span>
+              )}
+            </button>
             <button type="button" onClick={() => setActiveTab('jobs')} className={tabClass('jobs')}>
               Job Postings
             </button>
@@ -395,6 +501,12 @@ export default function AdminPage() {
       <div className="max-w-7xl mx-auto px-6 py-10">
         {activeTab === 'applications' && (
           <>
+            {appDeleteError && (
+              <p className="font-body text-sm text-red-600 bg-red-50 border border-red-100 rounded-sm px-4 py-3 mb-6">
+                {appDeleteError}
+              </p>
+            )}
+
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-10">
               {stats.map((s) => (
                 <div
@@ -650,6 +762,151 @@ export default function AdminPage() {
                               onClick={() => handleDeleteEnquiry(enq.id, enq.student_name)}
                               disabled={deletingEnquiryId === enq.id}
                               title="Remove enquiry"
+                              className="w-6 h-6 flex items-center justify-center rounded-full border border-red-200 text-red-400 hover:bg-red-50 hover:border-red-400 hover:text-red-600 transition-colors disabled:opacity-40"
+                            >
+                              <svg width="10" height="2" viewBox="0 0 10 2" fill="currentColor">
+                                <rect width="10" height="2" rx="1" />
+                              </svg>
+                            </button>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            )}
+          </>
+        )}
+
+        {activeTab === 'summer' && (
+          <>
+            <div className="mb-8">
+              <h2 className="font-heading text-navy text-3xl font-semibold">Summer Program Enrollments</h2>
+              <p className="font-body text-gray-500 text-sm mt-1">
+                Students who applied via the summer program form at /summer-program
+              </p>
+            </div>
+
+            {summerFetchError && (
+              <p className="font-body text-sm text-red-600 bg-red-50 border border-red-100 rounded-sm px-4 py-3 mb-6">
+                Could not load summer enrollments: {summerFetchError}. Run{' '}
+                <code className="text-xs bg-red-100 px-1 py-0.5">supabase/summer_enrollments.sql</code> in
+                the Supabase SQL editor if you have not created the table yet.
+              </p>
+            )}
+
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-10">
+              {[
+                { label: 'Total', value: summerEnrollments.length, color: 'text-navy' },
+                { label: 'New', value: summerEnrollments.filter((e) => e.status === 'New').length, color: 'text-blue-600' },
+                { label: 'Enrolled', value: summerEnrollments.filter((e) => e.status === 'Enrolled').length, color: 'text-emerald-600' },
+                { label: 'Rejected', value: summerEnrollments.filter((e) => e.status === 'Rejected').length, color: 'text-red-500' },
+              ].map((s) => (
+                <div key={s.label} className="bg-white border border-gray-100 rounded-sm shadow-sm px-6 py-5">
+                  <p className="font-body text-gray-400 text-xs uppercase tracking-widest">{s.label}</p>
+                  <p className={`font-heading text-5xl font-semibold mt-1 ${s.color}`}>{s.value}</p>
+                </div>
+              ))}
+            </div>
+
+            {summerLoading ? (
+              <div className="flex justify-center py-24">
+                <Spinner />
+              </div>
+            ) : summerEnrollments.length === 0 ? (
+              <div className="bg-white border border-gray-100 rounded-sm shadow-sm py-24 text-center">
+                <p className="font-heading text-navy text-3xl font-semibold">No summer enrollments yet</p>
+                <p className="font-body text-gray-400 text-sm mt-2 max-w-md mx-auto">
+                  When parents submit the form at /summer-program, their applications will appear
+                  here with student details, contact info, and campus preference.
+                </p>
+              </div>
+            ) : (
+              <div className="bg-white border border-gray-100 rounded-sm shadow-sm overflow-hidden">
+                <div className="overflow-x-auto">
+                  <table className="w-full text-left min-w-[1000px]">
+                    <thead>
+                      <tr className="bg-navy">
+                        {[
+                          'Student',
+                          'Grade / Age',
+                          'Parent',
+                          'Contact',
+                          'Campus',
+                          'Message',
+                          'Date Applied',
+                          'Status',
+                          '',
+                        ].map((h) => (
+                          <th
+                            key={h}
+                            className="font-body text-xs tracking-widest uppercase font-semibold text-white px-5 py-4 whitespace-nowrap"
+                          >
+                            {h}
+                          </th>
+                        ))}
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-gray-50">
+                      {summerEnrollments.map((enr) => (
+                        <tr key={enr.id} className="hover:bg-cream/60 transition-colors">
+                          <td className="px-5 py-4">
+                            <p className="font-body font-semibold text-navy text-sm">{enr.student_name}</p>
+                          </td>
+                          <td className="px-5 py-4">
+                            <p className="font-body text-gray-700 text-sm">{enr.grade}</p>
+                          </td>
+                          <td className="px-5 py-4">
+                            <p className="font-body text-gray-700 text-sm">{enr.parent_name}</p>
+                          </td>
+                          <td className="px-5 py-4">
+                            <p className="font-body text-gray-700 text-sm">{enr.phone}</p>
+                            {enr.email && (
+                              <p className="font-body text-gray-400 text-xs mt-0.5">{enr.email}</p>
+                            )}
+                          </td>
+                          <td className="px-5 py-4">
+                            <p className="font-body text-gray-500 text-sm whitespace-nowrap">
+                              {enr.preferred_campus}
+                            </p>
+                          </td>
+                          <td className="px-5 py-4 max-w-[200px]">
+                            <p className="font-body text-gray-500 text-sm line-clamp-3">
+                              {enr.message || '—'}
+                            </p>
+                          </td>
+                          <td className="px-5 py-4 whitespace-nowrap">
+                            <p className="font-body text-gray-500 text-sm">
+                              {new Date(enr.created_at).toLocaleDateString('en-GB', {
+                                day: 'numeric',
+                                month: 'short',
+                                year: 'numeric',
+                              })}
+                            </p>
+                          </td>
+                          <td className="px-5 py-4">
+                            <div className="relative inline-block">
+                              <select
+                                value={enr.status}
+                                onChange={(e) => handleSummerStatusChange(enr.id, e.target.value)}
+                                className={`appearance-none border rounded-sm pl-3 pr-7 py-1.5 font-body text-xs font-semibold cursor-pointer focus:outline-none focus:ring-1 focus:ring-gold transition-colors ${
+                                  SUMMER_STATUS_STYLES[enr.status] ?? 'bg-gray-50 text-gray-600 border-gray-200'
+                                }`}
+                              >
+                                <option>New</option>
+                                <option>Contacted</option>
+                                <option>Enrolled</option>
+                                <option>Rejected</option>
+                              </select>
+                            </div>
+                          </td>
+                          <td className="px-5 py-4">
+                            <button
+                              type="button"
+                              onClick={() => handleDeleteSummer(enr.id, enr.student_name)}
+                              disabled={deletingSummerId === enr.id}
+                              title="Remove enrollment"
                               className="w-6 h-6 flex items-center justify-center rounded-full border border-red-200 text-red-400 hover:bg-red-50 hover:border-red-400 hover:text-red-600 transition-colors disabled:opacity-40"
                             >
                               <svg width="10" height="2" viewBox="0 0 10 2" fill="currentColor">
