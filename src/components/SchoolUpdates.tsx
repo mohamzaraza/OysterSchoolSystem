@@ -22,11 +22,14 @@ export default function SchoolUpdates() {
 
         <div className="grid md:grid-cols-2 gap-8">
           <div className="bg-white rounded-sm border border-gray-100 shadow-sm overflow-hidden hover:border-gold/40 transition-colors group">
-            <Link href="/admissions" className="block overflow-hidden">
+            <Link
+              href="/admissions"
+              className="flex items-center justify-center min-h-[420px] bg-cream border border-gold/40 p-4 overflow-hidden"
+            >
               <PosterImage
                 src={POSTERS.admissions}
                 alt={tx.admissionsPosterAlt}
-                className="w-full h-auto max-h-80 object-cover object-top group-hover:scale-[1.02] transition-transform duration-500"
+                className="max-w-full max-h-[420px] w-auto h-auto object-contain group-hover:scale-[1.02] transition-transform duration-500"
               />
             </Link>
             <div className="p-6">
@@ -54,11 +57,14 @@ export default function SchoolUpdates() {
           </div>
 
           <div className="bg-white rounded-sm border border-gray-100 shadow-sm overflow-hidden hover:border-gold/40 transition-colors group">
-            <Link href="/summer-program" className="block overflow-hidden">
+            <Link
+              href="/summer-program"
+              className="flex items-center justify-center min-h-[420px] bg-cream border border-gold/40 p-4 overflow-hidden"
+            >
               <PosterImage
                 src={POSTERS.summerProgram}
                 alt={tx.summerPosterAlt}
-                className="w-full h-auto max-h-80 object-cover object-top group-hover:scale-[1.02] transition-transform duration-500"
+                className="max-w-full max-h-[420px] w-auto h-auto object-contain group-hover:scale-[1.02] transition-transform duration-500"
               />
             </Link>
             <div className="p-6">
