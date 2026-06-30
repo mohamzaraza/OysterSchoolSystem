@@ -18,7 +18,7 @@ type Application = {
   status: string
 }
 
-type AdminTab = 'applications' | 'admissions' | 'summer' | 'jobs'
+type AdminTab = 'applications' | 'admissions' | 'summer' | 'scholarships' | 'jobs'
 
 type AdmissionEnquiry = {
   id: string
@@ -40,6 +40,32 @@ type SummerEnrollment = {
   email: string | null
   preferred_campus: string
   message: string | null
+  status: string
+}
+
+type ScholarshipApplication = {
+  id: string
+  created_at: string
+  scholarship_type: string
+  student_name: string
+  father_name: string | null
+  mother_name: string | null
+  date_of_birth: string | null
+  grade_applying_for: string | null
+  campus: string | null
+  current_school: string | null
+  guardian_name: string
+  relationship: string | null
+  guardian_phone: string
+  guardian_id_url: string[] | null
+  academic_records: string[] | null
+  death_or_disability_cert_url: string[] | null
+  certificates_url: string[] | null
+  residence_photo_url: string[] | null
+  supporting_documents: string[] | null
+  eligibility_description: string | null
+  email: string | null
+  address: string | null
   status: string
 }
 
@@ -72,6 +98,26 @@ const SUMMER_STATUS_STYLES: Record<string, string> = {
   Rejected: 'bg-red-50 text-red-600 border-red-200',
 }
 
+const SCHOLARSHIP_STATUS_STYLES: Record<string, string> = {
+  New: 'bg-blue-50 text-blue-700 border-blue-200',
+  Contacted: 'bg-amber-50 text-amber-700 border-amber-200',
+  'Interview Scheduled': 'bg-purple-50 text-purple-700 border-purple-200',
+  Awarded: 'bg-emerald-50 text-emerald-700 border-emerald-200',
+  Rejected: 'bg-red-50 text-red-600 border-red-200',
+}
+
+const SCHOLARSHIP_LABELS: Record<string, string> = {
+  basheer_memorial: 'Mohammed Basheer Memorial',
+  asif_jah_bahadur: 'Asif Jah Bahadur Excellence & Oratory',
+  umeed_e_naseem: 'Umeed e Naseem',
+}
+
+const SCHOLARSHIP_BADGES: Record<string, string> = {
+  basheer_memorial: 'bg-blue-50 text-blue-700 border-blue-200',
+  asif_jah_bahadur: 'bg-amber-50 text-amber-800 border-amber-200',
+  umeed_e_naseem: 'bg-emerald-50 text-emerald-700 border-emerald-200',
+}
+
 const ADMISSION_STATUS_STYLES: Record<string, string> = {
   New: 'bg-blue-50 text-blue-700 border-blue-200',
   Contacted: 'bg-amber-50 text-amber-700 border-amber-200',
@@ -82,6 +128,11 @@ const ADMISSION_STATUS_STYLES: Record<string, string> = {
 
 const inputClass =
   'w-full border border-gray-200 rounded-sm px-4 py-3 font-body text-sm text-gray-700 placeholder-gray-400 focus:outline-none focus:border-gold transition-colors'
+
+/** The DB default status is the lowercase 'new'; show it as the canonical 'New'. */
+function normalizeStatus(status: string): string {
+  return status.toLowerCase() === 'new' ? 'New' : status
+}
 
 function Spinner({ light = false }: { light?: boolean }) {
   return (
@@ -120,6 +171,11 @@ export default function AdminPage() {
   const [summerLoading, setSummerLoading] = useState(false)
   const [summerFetchError, setSummerFetchError] = useState<string | null>(null)
   const [deletingSummerId, setDeletingSummerId] = useState<string | null>(null)
+  const [scholarshipApps, setScholarshipApps] = useState<ScholarshipApplication[]>([])
+  const [scholarshipLoading, setScholarshipLoading] = useState(false)
+  const [scholarshipFetchError, setScholarshipFetchError] = useState<string | null>(null)
+  const [deletingScholarshipId, setDeletingScholarshipId] = useState<string | null>(null)
+  const [viewingScholarship, setViewingScholarship] = useState<ScholarshipApplication | null>(null)
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
@@ -142,6 +198,7 @@ export default function AdminPage() {
       fetchJobPostings()
       fetchAdmissions()
       fetchSummerEnrollments()
+      fetchScholarshipApps()
     }
   }, [session])
 
@@ -231,6 +288,45 @@ export default function AdminPage() {
     setDeletingSummerId(null)
   }
 
+  async function fetchScholarshipApps() {
+    setScholarshipLoading(true)
+    setScholarshipFetchError(null)
+    const { data, error } = await supabase
+      .from('scholarship_applications')
+      .select('*')
+      .order('created_at', { ascending: false })
+
+    if (error) {
+      setScholarshipFetchError(error.message)
+      setScholarshipApps([])
+    } else {
+      setScholarshipApps(data ?? [])
+    }
+    setScholarshipLoading(false)
+  }
+
+  async function handleScholarshipStatusChange(id: string, status: string) {
+    setScholarshipApps((prev) => prev.map((a) => (a.id === id ? { ...a, status } : a)))
+    await supabase.from('scholarship_applications').update({ status }).eq('id', id)
+  }
+
+  async function handleDeleteScholarship(id: string, name: string) {
+    if (!window.confirm(`Remove ${name}'s scholarship application? This cannot be undone.`)) return
+
+    setDeletingScholarshipId(id)
+    const { data, error } = await supabase
+      .from('scholarship_applications')
+      .delete()
+      .eq('id', id)
+      .select('id')
+
+    if (!error && data?.length) {
+      setScholarshipApps((prev) => prev.filter((a) => a.id !== id))
+      if (viewingScholarship?.id === id) setViewingScholarship(null)
+    }
+    setDeletingScholarshipId(null)
+  }
+
   async function fetchJobPostings() {
     setJobsLoading(true)
     const { data } = await supabase
@@ -255,6 +351,7 @@ export default function AdminPage() {
     setApplications([])
     setAdmissions([])
     setSummerEnrollments([])
+    setScholarshipApps([])
     setJobPostings([])
     setJobForm(emptyJobForm)
     setEditingJobId(null)
@@ -486,6 +583,14 @@ export default function AdminPage() {
               {summerEnrollments.filter((e) => e.status === 'New').length > 0 && (
                 <span className="ml-1.5 inline-flex items-center justify-center min-w-[1.25rem] h-5 px-1 rounded-full bg-navy text-gold text-[10px] font-bold">
                   {summerEnrollments.filter((e) => e.status === 'New').length}
+                </span>
+              )}
+            </button>
+            <button type="button" onClick={() => setActiveTab('scholarships')} className={tabClass('scholarships')}>
+              Scholarships
+              {scholarshipApps.filter((a) => normalizeStatus(a.status) === 'New').length > 0 && (
+                <span className="ml-1.5 inline-flex items-center justify-center min-w-[1.25rem] h-5 px-1 rounded-full bg-navy text-gold text-[10px] font-bold">
+                  {scholarshipApps.filter((a) => normalizeStatus(a.status) === 'New').length}
                 </span>
               )}
             </button>
@@ -939,6 +1044,157 @@ export default function AdminPage() {
           </>
         )}
 
+        {activeTab === 'scholarships' && (
+          <>
+            <div className="mb-8">
+              <h2 className="font-heading text-navy text-3xl font-semibold">Scholarship Applications</h2>
+              <p className="font-body text-gray-500 text-sm mt-1">
+                Submitted via the application form at /scholarship/apply
+              </p>
+            </div>
+
+            {scholarshipFetchError && (
+              <p className="font-body text-sm text-red-600 bg-red-50 border border-red-100 rounded-sm px-4 py-3 mb-6">
+                Could not load scholarship applications: {scholarshipFetchError}
+              </p>
+            )}
+
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-10">
+              {[
+                { label: 'Total', value: scholarshipApps.length, color: 'text-navy' },
+                { label: 'New', value: scholarshipApps.filter((a) => normalizeStatus(a.status) === 'New').length, color: 'text-blue-600' },
+                { label: 'Awarded', value: scholarshipApps.filter((a) => a.status === 'Awarded').length, color: 'text-emerald-600' },
+                { label: 'Rejected', value: scholarshipApps.filter((a) => a.status === 'Rejected').length, color: 'text-red-500' },
+              ].map((s) => (
+                <div key={s.label} className="bg-white border border-gray-100 rounded-sm shadow-sm px-6 py-5">
+                  <p className="font-body text-gray-400 text-xs uppercase tracking-widest">{s.label}</p>
+                  <p className={`font-heading text-5xl font-semibold mt-1 ${s.color}`}>{s.value}</p>
+                </div>
+              ))}
+            </div>
+
+            {scholarshipLoading ? (
+              <div className="flex justify-center py-24">
+                <Spinner />
+              </div>
+            ) : scholarshipApps.length === 0 ? (
+              <div className="bg-white border border-gray-100 rounded-sm shadow-sm py-24 text-center">
+                <p className="font-heading text-navy text-3xl font-semibold">No scholarship applications yet</p>
+                <p className="font-body text-gray-400 text-sm mt-2 max-w-md mx-auto">
+                  Applications submitted at /scholarship/apply will appear here with student details,
+                  uploaded documents, and the parent&apos;s statement.
+                </p>
+              </div>
+            ) : (
+              <div className="bg-white border border-gray-100 rounded-sm shadow-sm overflow-hidden">
+                <div className="overflow-x-auto">
+                  <table className="w-full text-left min-w-[1040px]">
+                    <thead>
+                      <tr className="bg-navy">
+                        {['Student', 'Scholarship', 'Campus', 'Guardian', 'Date Applied', 'Status', 'Details', ''].map((h) => (
+                          <th
+                            key={h}
+                            className="font-body text-xs tracking-widest uppercase font-semibold text-white px-5 py-4 whitespace-nowrap"
+                          >
+                            {h}
+                          </th>
+                        ))}
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-gray-50">
+                      {scholarshipApps.map((app) => {
+                        const status = normalizeStatus(app.status)
+                        return (
+                          <tr key={app.id} className="hover:bg-cream/60 transition-colors">
+                            <td className="px-5 py-4">
+                              <p className="font-body font-semibold text-navy text-sm">{app.student_name}</p>
+                              {app.grade_applying_for && (
+                                <p className="font-body text-gray-400 text-xs mt-0.5">{app.grade_applying_for}</p>
+                              )}
+                            </td>
+                            <td className="px-5 py-4">
+                              <span
+                                className={`inline-block font-body text-xs font-semibold border rounded-sm px-2.5 py-1 ${
+                                  SCHOLARSHIP_BADGES[app.scholarship_type] ?? 'bg-gray-50 text-gray-600 border-gray-200'
+                                }`}
+                              >
+                                {SCHOLARSHIP_LABELS[app.scholarship_type] ?? app.scholarship_type}
+                              </span>
+                            </td>
+                            <td className="px-5 py-4">
+                              <p className="font-body text-gray-500 text-sm whitespace-nowrap">{app.campus ?? '—'}</p>
+                            </td>
+                            <td className="px-5 py-4">
+                              <p className="font-body text-gray-700 text-sm">{app.guardian_name}</p>
+                              <p className="font-body text-gray-400 text-xs mt-0.5">{app.guardian_phone}</p>
+                            </td>
+                            <td className="px-5 py-4 whitespace-nowrap">
+                              <p className="font-body text-gray-500 text-sm">
+                                {new Date(app.created_at).toLocaleDateString('en-GB', {
+                                  day: 'numeric',
+                                  month: 'short',
+                                  year: 'numeric',
+                                })}
+                              </p>
+                            </td>
+                            <td className="px-5 py-4">
+                              <div className="relative inline-block">
+                                <select
+                                  value={status}
+                                  onChange={(e) => handleScholarshipStatusChange(app.id, e.target.value)}
+                                  className={`appearance-none border rounded-sm pl-3 pr-7 py-1.5 font-body text-xs font-semibold cursor-pointer focus:outline-none focus:ring-1 focus:ring-gold transition-colors ${
+                                    SCHOLARSHIP_STATUS_STYLES[status] ?? 'bg-gray-50 text-gray-600 border-gray-200'
+                                  }`}
+                                >
+                                  <option>New</option>
+                                  <option>Contacted</option>
+                                  <option>Interview Scheduled</option>
+                                  <option>Awarded</option>
+                                  <option>Rejected</option>
+                                </select>
+                                <svg
+                                  className="pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 w-3 h-3 opacity-50"
+                                  fill="none"
+                                  stroke="currentColor"
+                                  viewBox="0 0 24 24"
+                                >
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M19 9l-7 7-7-7" />
+                                </svg>
+                              </div>
+                            </td>
+                            <td className="px-5 py-4">
+                              <button
+                                type="button"
+                                onClick={() => setViewingScholarship(app)}
+                                className="font-body text-xs font-semibold text-gold hover:text-gold-dark transition-colors whitespace-nowrap"
+                              >
+                                View full
+                              </button>
+                            </td>
+                            <td className="px-5 py-4">
+                              <button
+                                type="button"
+                                onClick={() => handleDeleteScholarship(app.id, app.student_name)}
+                                disabled={deletingScholarshipId === app.id}
+                                title="Remove application"
+                                className="w-6 h-6 flex items-center justify-center rounded-full border border-red-200 text-red-400 hover:bg-red-50 hover:border-red-400 hover:text-red-600 transition-colors disabled:opacity-40"
+                              >
+                                <svg width="10" height="2" viewBox="0 0 10 2" fill="currentColor">
+                                  <rect width="10" height="2" rx="1" />
+                                </svg>
+                              </button>
+                            </td>
+                          </tr>
+                        )
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            )}
+          </>
+        )}
+
         {activeTab === 'jobs' && (
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 items-start">
             <div
@@ -1155,6 +1411,172 @@ export default function AdminPage() {
               <button
                 type="button"
                 onClick={() => setViewingCoverLetter(null)}
+                className="btn-primary text-xs"
+              >
+                Close
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {viewingScholarship && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-navy/60"
+          onClick={() => setViewingScholarship(null)}
+        >
+          <div
+            className="bg-white rounded-sm shadow-xl w-full max-w-2xl max-h-[88vh] flex flex-col"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="px-6 py-5 border-b border-gray-100 flex items-start justify-between gap-4">
+              <div>
+                <span
+                  className={`inline-block font-body text-[11px] font-semibold border rounded-sm px-2.5 py-1 ${
+                    SCHOLARSHIP_BADGES[viewingScholarship.scholarship_type] ??
+                    'bg-gray-50 text-gray-600 border-gray-200'
+                  }`}
+                >
+                  {SCHOLARSHIP_LABELS[viewingScholarship.scholarship_type] ??
+                    viewingScholarship.scholarship_type}
+                </span>
+                <h3 className="font-heading text-navy text-2xl font-semibold mt-2">
+                  {viewingScholarship.student_name}
+                </h3>
+                <p className="font-body text-gray-400 text-xs mt-1">
+                  Applied{' '}
+                  {new Date(viewingScholarship.created_at).toLocaleDateString('en-GB', {
+                    day: 'numeric',
+                    month: 'long',
+                    year: 'numeric',
+                  })}
+                </p>
+              </div>
+              <span
+                className={`shrink-0 font-body text-xs font-semibold border rounded-sm px-3 py-1.5 ${
+                  SCHOLARSHIP_STATUS_STYLES[normalizeStatus(viewingScholarship.status)] ??
+                  'bg-gray-50 text-gray-600 border-gray-200'
+                }`}
+              >
+                {normalizeStatus(viewingScholarship.status)}
+              </span>
+            </div>
+
+            <div className="px-6 py-5 overflow-y-auto flex-1 space-y-6">
+              {/* Student */}
+              <section>
+                <p className="font-body text-gold text-[11px] tracking-widest uppercase font-semibold mb-3">
+                  Student Information
+                </p>
+                <dl className="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-3">
+                  {[
+                    ["Father's Name", viewingScholarship.father_name],
+                    ["Mother's Name", viewingScholarship.mother_name],
+                    ['Date of Birth', viewingScholarship.date_of_birth],
+                    ['Grade Applying For', viewingScholarship.grade_applying_for],
+                    ['Campus', viewingScholarship.campus],
+                    ['Current School', viewingScholarship.current_school],
+                  ].map(([label, value]) => (
+                    <div key={label}>
+                      <dt className="font-body text-gray-400 text-xs">{label}</dt>
+                      <dd className="font-body text-navy text-sm font-medium">{value || '—'}</dd>
+                    </div>
+                  ))}
+                </dl>
+              </section>
+
+              {/* Guardian */}
+              <section className="border-t border-gray-100 pt-5">
+                <p className="font-body text-gold text-[11px] tracking-widest uppercase font-semibold mb-3">
+                  Guardian &amp; Contact
+                </p>
+                <dl className="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-3">
+                  {[
+                    ['Guardian Name', viewingScholarship.guardian_name],
+                    ['Relationship', viewingScholarship.relationship],
+                    ['Phone', viewingScholarship.guardian_phone],
+                    ['Email', viewingScholarship.email],
+                  ].map(([label, value]) => (
+                    <div key={label}>
+                      <dt className="font-body text-gray-400 text-xs">{label}</dt>
+                      <dd className="font-body text-navy text-sm font-medium break-words">
+                        {value || '—'}
+                      </dd>
+                    </div>
+                  ))}
+                  <div className="sm:col-span-2">
+                    <dt className="font-body text-gray-400 text-xs">Address</dt>
+                    <dd className="font-body text-navy text-sm font-medium">
+                      {viewingScholarship.address || '—'}
+                    </dd>
+                  </div>
+                </dl>
+              </section>
+
+              {/* Statement */}
+              <section className="border-t border-gray-100 pt-5">
+                <p className="font-body text-gold text-[11px] tracking-widest uppercase font-semibold mb-3">
+                  Why the child deserves this scholarship
+                </p>
+                <p className="font-body text-gray-700 text-sm leading-relaxed whitespace-pre-line bg-cream rounded-sm p-4">
+                  {viewingScholarship.eligibility_description || '—'}
+                </p>
+              </section>
+
+              {/* Documents */}
+              <section className="border-t border-gray-100 pt-5">
+                <p className="font-body text-gold text-[11px] tracking-widest uppercase font-semibold mb-3">
+                  Uploaded Documents
+                </p>
+                <div className="flex flex-wrap gap-2">
+                  {(() => {
+                    const groups: [string, string[] | null][] = [
+                      ['Guardian ID', viewingScholarship.guardian_id_url],
+                      ['Report Card', viewingScholarship.academic_records],
+                      ['Death / Disability Certificate', viewingScholarship.death_or_disability_cert_url],
+                      ['Certificate', viewingScholarship.certificates_url],
+                      ['Residence Photo', viewingScholarship.residence_photo_url],
+                      ['Supporting Doc', viewingScholarship.supporting_documents],
+                    ]
+                    const links: [string, string][] = []
+                    for (const [label, urls] of groups) {
+                      const list = urls ?? []
+                      list.forEach((url, i) => {
+                        links.push([list.length > 1 ? `${label} ${i + 1}` : label, url])
+                      })
+                    }
+
+                    if (links.length === 0) {
+                      return (
+                        <span className="font-body text-gray-400 text-sm">
+                          No documents uploaded.
+                        </span>
+                      )
+                    }
+
+                    return links.map(([label, url]) => (
+                      <a
+                        key={label}
+                        href={url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="inline-flex items-center gap-1.5 font-body text-xs font-semibold text-navy border border-gray-200 rounded-sm px-3 py-2 hover:border-gold/60 hover:bg-cream transition-colors"
+                      >
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M14 3h7v7m0-7L10 14M5 7v12a2 2 0 002 2h12" />
+                        </svg>
+                        {label}
+                      </a>
+                    ))
+                  })()}
+                </div>
+              </section>
+            </div>
+
+            <div className="px-6 py-4 border-t border-gray-100 flex justify-end">
+              <button
+                type="button"
+                onClick={() => setViewingScholarship(null)}
                 className="btn-primary text-xs"
               >
                 Close

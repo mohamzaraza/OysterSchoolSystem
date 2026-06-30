@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useRef } from "react";
+import Link from "next/link";
 import { motion, AnimatePresence, useInView } from "framer-motion";
 import {
   HeartHandshake,
@@ -228,17 +229,16 @@ function ScholarshipCard({
           {/* Apply Now — pinned to the bottom so all cards align,
               wrapped so the gap above is real space, not button padding */}
           <div className="mt-auto pt-6">
-            <a
-              href={APPLY_MAILTO}
+            <Link
+              href="/scholarship/apply"
               className={`w-full group/apply inline-flex items-center justify-center gap-2 font-body text-sm font-semibold rounded-sm px-4 py-3 transition-colors duration-200 ${accent.solid}`}
             >
-              <Mail size={16} />
               Apply Now
               <ArrowRight
                 size={15}
                 className="group-hover/apply:translate-x-1 transition-transform duration-200"
               />
-            </a>
+            </Link>
           </div>
         </div>
       </div>
