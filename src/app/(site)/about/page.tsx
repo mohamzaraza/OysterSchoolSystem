@@ -1,4 +1,17 @@
+'use client'
+
+import { useRef } from 'react'
+import Link from 'next/link'
+import { motion, useInView } from 'framer-motion'
+import { POSTERS } from '@/lib/posters'
+import { PosterImage } from '@/components/PosterImage'
+
+const EASE = [0.22, 1, 0.36, 1] as const
+
 export default function AboutPage() {
+  const posterRef = useRef<HTMLDivElement>(null)
+  const posterInView = useInView(posterRef, { once: true, margin: '-100px' })
+
   return (
     <div className="min-h-screen">
       {/* Page Header */}
@@ -30,6 +43,33 @@ export default function AboutPage() {
           of extraordinary things.
         </p>
       </div>
+
+      {/* Why Oyster Poster */}
+      <div className="bg-cream py-16">
+        <motion.div
+          ref={posterRef}
+          initial={{ opacity: 0, y: 44 }}
+          animate={posterInView ? { opacity: 1, y: 0 } : {}}
+          transition={{ duration: 0.7, ease: EASE }}
+          className="max-w-[600px] mx-auto px-4 flex flex-col items-center text-center"
+        >
+          <p className="font-body text-gold text-sm tracking-widest uppercase font-semibold mb-6">
+            Why Choose Oyster?
+          </p>
+
+          <div className="border-2 border-gold rounded-sm shadow-2xl overflow-hidden bg-white">
+            <PosterImage
+              src={POSTERS.whyOyster}
+              alt="Why choose Oyster School System"
+              className="w-full h-auto object-contain"
+            />
+          </div>
+
+          <Link href="/admissions" className="btn-primary mt-8">
+            Apply Now
+          </Link>
+        </motion.div>
+      </div>
     </div>
-  );
+  )
 }

@@ -18,7 +18,7 @@ type Application = {
   status: string
 }
 
-type AdminTab = 'applications' | 'admissions' | 'summer' | 'scholarships' | 'jobs'
+type AdminTab = 'applications' | 'admissions' | 'summer' | 'scholarships' | 'workshop' | 'jobs'
 
 type AdmissionEnquiry = {
   id: string
@@ -66,6 +66,19 @@ type ScholarshipApplication = {
   eligibility_description: string | null
   email: string | null
   address: string | null
+  status: string
+}
+
+type WorkshopRegistration = {
+  id: string
+  created_at: string
+  full_name: string
+  designation: string
+  school_name: string
+  city: string
+  phone: string
+  email: string | null
+  payment_method: string
   status: string
 }
 
@@ -126,6 +139,17 @@ const ADMISSION_STATUS_STYLES: Record<string, string> = {
   Rejected: 'bg-red-50 text-red-600 border-red-200',
 }
 
+const WORKSHOP_STATUS_STYLES: Record<string, string> = {
+  registered: 'bg-blue-50 text-blue-700 border-blue-200',
+  payment_confirmed: 'bg-emerald-50 text-emerald-700 border-emerald-200',
+  cancelled: 'bg-red-50 text-red-600 border-red-200',
+}
+
+const PAYMENT_METHOD_LABELS: Record<string, string> = {
+  jazzcash: 'JazzCash',
+  cash_on_arrival: 'Cash on Arrival',
+}
+
 const inputClass =
   'w-full border border-gray-200 rounded-sm px-4 py-3 font-body text-sm text-gray-700 placeholder-gray-400 focus:outline-none focus:border-gold transition-colors'
 
@@ -176,6 +200,10 @@ export default function AdminPage() {
   const [scholarshipFetchError, setScholarshipFetchError] = useState<string | null>(null)
   const [deletingScholarshipId, setDeletingScholarshipId] = useState<string | null>(null)
   const [viewingScholarship, setViewingScholarship] = useState<ScholarshipApplication | null>(null)
+  const [workshopRegistrations, setWorkshopRegistrations] = useState<WorkshopRegistration[]>([])
+  const [workshopLoading, setWorkshopLoading] = useState(false)
+  const [workshopFetchError, setWorkshopFetchError] = useState<string | null>(null)
+  const [deletingWorkshopId, setDeletingWorkshopId] = useState<string | null>(null)
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
@@ -199,6 +227,7 @@ export default function AdminPage() {
       fetchAdmissions()
       fetchSummerEnrollments()
       fetchScholarshipApps()
+      fetchWorkshopRegistrations()
     }
   }, [session])
 
@@ -327,6 +356,46 @@ export default function AdminPage() {
     setDeletingScholarshipId(null)
   }
 
+  async function fetchWorkshopRegistrations() {
+    setWorkshopLoading(true)
+    setWorkshopFetchError(null)
+    const { data, error } = await supabase
+      .from('workshop_registrations')
+      .select(
+        'id, created_at, full_name, designation, school_name, city, phone, email, payment_method, status'
+      )
+      .order('created_at', { ascending: false })
+
+    if (error) {
+      setWorkshopFetchError(error.message)
+      setWorkshopRegistrations([])
+    } else {
+      setWorkshopRegistrations(data ?? [])
+    }
+    setWorkshopLoading(false)
+  }
+
+  async function handleWorkshopStatusChange(id: string, status: string) {
+    setWorkshopRegistrations((prev) => prev.map((r) => (r.id === id ? { ...r, status } : r)))
+    await supabase.from('workshop_registrations').update({ status }).eq('id', id)
+  }
+
+  async function handleDeleteWorkshop(id: string, name: string) {
+    if (!window.confirm(`Remove ${name}'s workshop registration? This cannot be undone.`)) return
+
+    setDeletingWorkshopId(id)
+    const { data, error } = await supabase
+      .from('workshop_registrations')
+      .delete()
+      .eq('id', id)
+      .select('id')
+
+    if (!error && data?.length) {
+      setWorkshopRegistrations((prev) => prev.filter((r) => r.id !== id))
+    }
+    setDeletingWorkshopId(null)
+  }
+
   async function fetchJobPostings() {
     setJobsLoading(true)
     const { data } = await supabase
@@ -352,6 +421,7 @@ export default function AdminPage() {
     setAdmissions([])
     setSummerEnrollments([])
     setScholarshipApps([])
+    setWorkshopRegistrations([])
     setJobPostings([])
     setJobForm(emptyJobForm)
     setEditingJobId(null)
@@ -591,6 +661,14 @@ export default function AdminPage() {
               {scholarshipApps.filter((a) => normalizeStatus(a.status) === 'New').length > 0 && (
                 <span className="ml-1.5 inline-flex items-center justify-center min-w-[1.25rem] h-5 px-1 rounded-full bg-navy text-gold text-[10px] font-bold">
                   {scholarshipApps.filter((a) => normalizeStatus(a.status) === 'New').length}
+                </span>
+              )}
+            </button>
+            <button type="button" onClick={() => setActiveTab('workshop')} className={tabClass('workshop')}>
+              Workshop Registrations
+              {workshopRegistrations.filter((r) => r.status === 'registered').length > 0 && (
+                <span className="ml-1.5 inline-flex items-center justify-center min-w-[1.25rem] h-5 px-1 rounded-full bg-navy text-gold text-[10px] font-bold">
+                  {workshopRegistrations.filter((r) => r.status === 'registered').length}
                 </span>
               )}
             </button>
@@ -1187,6 +1265,158 @@ export default function AdminPage() {
                           </tr>
                         )
                       })}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            )}
+          </>
+        )}
+
+        {activeTab === 'workshop' && (
+          <>
+            <div className="mb-8">
+              <h2 className="font-heading text-navy text-3xl font-semibold">Workshop Registrations</h2>
+              <p className="font-body text-gray-500 text-sm mt-1">
+                Submitted via the registration form at /news/workshop-registration
+              </p>
+            </div>
+
+            {workshopFetchError && (
+              <p className="font-body text-sm text-red-600 bg-red-50 border border-red-100 rounded-sm px-4 py-3 mb-6">
+                Could not load workshop registrations: {workshopFetchError}. Run{' '}
+                <code className="text-xs bg-red-100 px-1 py-0.5">supabase/workshop_registrations.sql</code>{' '}
+                in the Supabase SQL editor if you have not created the table yet.
+              </p>
+            )}
+
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-10">
+              {[
+                { label: 'Total', value: workshopRegistrations.length, color: 'text-navy' },
+                { label: 'Registered', value: workshopRegistrations.filter((r) => r.status === 'registered').length, color: 'text-blue-600' },
+                { label: 'Payment Confirmed', value: workshopRegistrations.filter((r) => r.status === 'payment_confirmed').length, color: 'text-emerald-600' },
+                { label: 'Cancelled', value: workshopRegistrations.filter((r) => r.status === 'cancelled').length, color: 'text-red-500' },
+              ].map((s) => (
+                <div key={s.label} className="bg-white border border-gray-100 rounded-sm shadow-sm px-6 py-5">
+                  <p className="font-body text-gray-400 text-xs uppercase tracking-widest">{s.label}</p>
+                  <p className={`font-heading text-5xl font-semibold mt-1 ${s.color}`}>{s.value}</p>
+                </div>
+              ))}
+            </div>
+
+            {workshopLoading ? (
+              <div className="flex justify-center py-24">
+                <Spinner />
+              </div>
+            ) : workshopRegistrations.length === 0 ? (
+              <div className="bg-white border border-gray-100 rounded-sm shadow-sm py-24 text-center">
+                <p className="font-heading text-navy text-3xl font-semibold">No workshop registrations yet</p>
+                <p className="font-body text-gray-400 text-sm mt-2 max-w-md mx-auto">
+                  When people register via the form at /news/workshop-registration, their details
+                  will appear here.
+                </p>
+              </div>
+            ) : (
+              <div className="bg-white border border-gray-100 rounded-sm shadow-sm overflow-hidden">
+                <div className="overflow-x-auto">
+                  <table className="w-full text-left min-w-[1040px]">
+                    <thead>
+                      <tr className="bg-navy">
+                        {[
+                          'Name',
+                          'Designation',
+                          'School',
+                          'City',
+                          'Phone',
+                          'Payment Method',
+                          'Registration Date',
+                          'Status',
+                          '',
+                        ].map((h) => (
+                          <th
+                            key={h}
+                            className="font-body text-xs tracking-widest uppercase font-semibold text-white px-5 py-4 whitespace-nowrap"
+                          >
+                            {h}
+                          </th>
+                        ))}
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-gray-50">
+                      {workshopRegistrations.map((reg) => (
+                        <tr key={reg.id} className="hover:bg-cream/60 transition-colors">
+                          <td className="px-5 py-4">
+                            <p className="font-body font-semibold text-navy text-sm">{reg.full_name}</p>
+                            {reg.email && (
+                              <p className="font-body text-gray-400 text-xs mt-0.5">{reg.email}</p>
+                            )}
+                          </td>
+                          <td className="px-5 py-4">
+                            <p className="font-body text-gray-700 text-sm whitespace-nowrap">
+                              {reg.designation}
+                            </p>
+                          </td>
+                          <td className="px-5 py-4">
+                            <p className="font-body text-gray-700 text-sm">{reg.school_name}</p>
+                          </td>
+                          <td className="px-5 py-4">
+                            <p className="font-body text-gray-500 text-sm whitespace-nowrap">{reg.city}</p>
+                          </td>
+                          <td className="px-5 py-4">
+                            <p className="font-body text-gray-500 text-sm whitespace-nowrap">{reg.phone}</p>
+                          </td>
+                          <td className="px-5 py-4">
+                            <p className="font-body text-gray-700 text-sm whitespace-nowrap">
+                              {PAYMENT_METHOD_LABELS[reg.payment_method] ?? reg.payment_method}
+                            </p>
+                          </td>
+                          <td className="px-5 py-4 whitespace-nowrap">
+                            <p className="font-body text-gray-500 text-sm">
+                              {new Date(reg.created_at).toLocaleDateString('en-GB', {
+                                day: 'numeric',
+                                month: 'short',
+                                year: 'numeric',
+                              })}
+                            </p>
+                          </td>
+                          <td className="px-5 py-4">
+                            <div className="relative inline-block">
+                              <select
+                                value={reg.status}
+                                onChange={(e) => handleWorkshopStatusChange(reg.id, e.target.value)}
+                                className={`appearance-none border rounded-sm pl-3 pr-7 py-1.5 font-body text-xs font-semibold cursor-pointer focus:outline-none focus:ring-1 focus:ring-gold transition-colors ${
+                                  WORKSHOP_STATUS_STYLES[reg.status] ?? 'bg-gray-50 text-gray-600 border-gray-200'
+                                }`}
+                              >
+                                <option value="registered">Registered</option>
+                                <option value="payment_confirmed">Payment Confirmed</option>
+                                <option value="cancelled">Cancelled</option>
+                              </select>
+                              <svg
+                                className="pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 w-3 h-3 opacity-50"
+                                fill="none"
+                                stroke="currentColor"
+                                viewBox="0 0 24 24"
+                              >
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M19 9l-7 7-7-7" />
+                              </svg>
+                            </div>
+                          </td>
+                          <td className="px-5 py-4">
+                            <button
+                              type="button"
+                              onClick={() => handleDeleteWorkshop(reg.id, reg.full_name)}
+                              disabled={deletingWorkshopId === reg.id}
+                              title="Remove registration"
+                              className="w-6 h-6 flex items-center justify-center rounded-full border border-red-200 text-red-400 hover:bg-red-50 hover:border-red-400 hover:text-red-600 transition-colors disabled:opacity-40"
+                            >
+                              <svg width="10" height="2" viewBox="0 0 10 2" fill="currentColor">
+                                <rect width="10" height="2" rx="1" />
+                              </svg>
+                            </button>
+                          </td>
+                        </tr>
+                      ))}
                     </tbody>
                   </table>
                 </div>
