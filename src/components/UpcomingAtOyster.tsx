@@ -24,6 +24,16 @@ const cards = [
       "A two-day workshop on strengthening leadership through complexity, not crisis. By Prof. Abbas Husain.",
     cta: "Learn More",
   },
+  {
+    href: "/news/five-day-training-registration",
+    poster: POSTERS.fiveDayTraining,
+    alt: "Oyster Pathways 5-Day Training Program — Teaching Fundamentals",
+    title: "5-Day Training Program — Teaching Fundamentals",
+    subtitle: "27–31 July 2026 · Trainer: Abida Ashar",
+    description:
+      "A hands-on 5-day training covering lesson planning, classroom management, assessment and more. Seats are limited.",
+    cta: "Register Now",
+  },
 ];
 
 export default function UpcomingAtOyster() {

@@ -32,6 +32,12 @@ const slides = [
     href: "/news",
     cta: "Learn More",
   },
+  {
+    poster: POSTERS.fiveDayTraining,
+    alt: "Oyster Pathways 5-Day Training Program — Teaching Fundamentals",
+    href: "/news/five-day-training-registration",
+    cta: "Register Now",
+  },
 ];
 
 export default function AnnouncementPopup() {

@@ -11,12 +11,21 @@ create table if not exists public.workshop_registrations (
   email text,
   payment_method text not null,
   receipt_url text,
+  program text not null default 'leadership_workshop',
+  category text,
+  fee integer,
   status text not null default 'registered'
 );
 
--- If the table already exists, add the receipt column.
+-- If the table already exists, add the newer columns.
 alter table public.workshop_registrations
   add column if not exists receipt_url text;
+alter table public.workshop_registrations
+  add column if not exists program text not null default 'leadership_workshop';
+alter table public.workshop_registrations
+  add column if not exists category text;
+alter table public.workshop_registrations
+  add column if not exists fee integer;
 
 alter table public.workshop_registrations enable row level security;
 

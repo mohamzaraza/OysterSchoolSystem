@@ -80,6 +80,9 @@ type WorkshopRegistration = {
   email: string | null
   payment_method: string
   receipt_url: string | null
+  program: string
+  category: string | null
+  fee: number | null
   status: string
 }
 
@@ -152,6 +155,23 @@ const PAYMENT_METHOD_LABELS: Record<string, string> = {
   easypaisa: 'EasyPaisa',
   jazzcash: 'JazzCash',
   cash_on_arrival: 'Cash on Arrival',
+  free: 'Free',
+}
+
+const PROGRAM_LABELS: Record<string, string> = {
+  leadership_workshop: 'Leadership Workshop',
+  five_day_training: '5-Day Training',
+}
+
+const PROGRAM_BADGES: Record<string, string> = {
+  leadership_workshop: 'bg-blue-50 text-blue-700 border-blue-200',
+  five_day_training: 'bg-purple-50 text-purple-700 border-purple-200',
+}
+
+const WORKSHOP_CATEGORY_LABELS: Record<string, string> = {
+  oyster_faculty: 'Oyster Faculty',
+  individual: 'Individual',
+  school_group: 'School Group',
 }
 
 const inputClass =
@@ -366,7 +386,7 @@ export default function AdminPage() {
     const { data, error } = await supabase
       .from('workshop_registrations')
       .select(
-        'id, created_at, full_name, designation, school_name, city, phone, email, payment_method, receipt_url, status'
+        'id, created_at, full_name, designation, school_name, city, phone, email, payment_method, receipt_url, program, category, fee, status'
       )
       .order('created_at', { ascending: false })
 
@@ -398,6 +418,9 @@ export default function AdminPage() {
             full_name: reg.full_name,
             email: reg.email,
             payment_method: reg.payment_method,
+            program: reg.program,
+            category_label: reg.category ? WORKSHOP_CATEGORY_LABELS[reg.category] ?? reg.category : undefined,
+            fee_label: reg.fee != null ? (reg.fee === 0 ? 'Free' : `Rs. ${reg.fee.toLocaleString()}`) : undefined,
           }),
         })
       } catch {
@@ -1345,15 +1368,17 @@ export default function AdminPage() {
             ) : (
               <div className="bg-white border border-gray-100 rounded-sm shadow-sm overflow-hidden">
                 <div className="overflow-x-auto">
-                  <table className="w-full text-left min-w-[1040px]">
+                  <table className="w-full text-left min-w-[1280px]">
                     <thead>
                       <tr className="bg-navy">
                         {[
                           'Name',
+                          'Program',
                           'Designation',
                           'School',
                           'City',
                           'Phone',
+                          'Category / Fee',
                           'Payment Method',
                           'Receipt',
                           'Registration Date',
@@ -1379,6 +1404,15 @@ export default function AdminPage() {
                             )}
                           </td>
                           <td className="px-5 py-4">
+                            <span
+                              className={`inline-block font-body text-xs font-semibold px-2 py-1 rounded-sm border whitespace-nowrap ${
+                                PROGRAM_BADGES[reg.program] ?? 'bg-gray-50 text-gray-600 border-gray-200'
+                              }`}
+                            >
+                              {PROGRAM_LABELS[reg.program] ?? reg.program}
+                            </span>
+                          </td>
+                          <td className="px-5 py-4">
                             <p className="font-body text-gray-700 text-sm whitespace-nowrap">
                               {reg.designation}
                             </p>
@@ -1391,6 +1425,19 @@ export default function AdminPage() {
                           </td>
                           <td className="px-5 py-4">
                             <p className="font-body text-gray-500 text-sm whitespace-nowrap">{reg.phone}</p>
+                          </td>
+                          <td className="px-5 py-4">
+                            {reg.category ? (
+                              <p className="font-body text-gray-700 text-sm whitespace-nowrap">
+                                {WORKSHOP_CATEGORY_LABELS[reg.category] ?? reg.category}
+                                <span className="text-gray-400">
+                                  {' · '}
+                                  {reg.fee === 0 ? 'Free' : reg.fee != null ? `Rs. ${reg.fee.toLocaleString()}` : '—'}
+                                </span>
+                              </p>
+                            ) : (
+                              <span className="font-body text-gray-300 text-sm">—</span>
+                            )}
                           </td>
                           <td className="px-5 py-4">
                             <p className="font-body text-gray-700 text-sm whitespace-nowrap">
