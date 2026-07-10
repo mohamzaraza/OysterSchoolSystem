@@ -79,6 +79,7 @@ type WorkshopRegistration = {
   phone: string
   email: string | null
   payment_method: string
+  receipt_url: string | null
   status: string
 }
 
@@ -141,11 +142,14 @@ const ADMISSION_STATUS_STYLES: Record<string, string> = {
 
 const WORKSHOP_STATUS_STYLES: Record<string, string> = {
   registered: 'bg-blue-50 text-blue-700 border-blue-200',
+  pending_verification: 'bg-amber-50 text-amber-700 border-amber-200',
+  verified: 'bg-emerald-50 text-emerald-700 border-emerald-200',
   payment_confirmed: 'bg-emerald-50 text-emerald-700 border-emerald-200',
   cancelled: 'bg-red-50 text-red-600 border-red-200',
 }
 
 const PAYMENT_METHOD_LABELS: Record<string, string> = {
+  easypaisa: 'EasyPaisa',
   jazzcash: 'JazzCash',
   cash_on_arrival: 'Cash on Arrival',
 }
@@ -362,7 +366,7 @@ export default function AdminPage() {
     const { data, error } = await supabase
       .from('workshop_registrations')
       .select(
-        'id, created_at, full_name, designation, school_name, city, phone, email, payment_method, status'
+        'id, created_at, full_name, designation, school_name, city, phone, email, payment_method, receipt_url, status'
       )
       .order('created_at', { ascending: false })
 
@@ -376,8 +380,30 @@ export default function AdminPage() {
   }
 
   async function handleWorkshopStatusChange(id: string, status: string) {
+    const reg = workshopRegistrations.find((r) => r.id === id)
+    const wasVerified = reg?.status === 'verified'
+
     setWorkshopRegistrations((prev) => prev.map((r) => (r.id === id ? { ...r, status } : r)))
     await supabase.from('workshop_registrations').update({ status }).eq('id', id)
+
+    // When an admin marks a registration Verified, email the registrant their
+    // final confirmation. Only fire on the transition into 'verified'.
+    if (status === 'verified' && reg && !wasVerified) {
+      try {
+        await fetch('/api/workshop-confirmation', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            stage: 'verified',
+            full_name: reg.full_name,
+            email: reg.email,
+            payment_method: reg.payment_method,
+          }),
+        })
+      } catch {
+        // ignore — the status change is already saved
+      }
+    }
   }
 
   async function handleDeleteWorkshop(id: string, name: string) {
@@ -666,9 +692,9 @@ export default function AdminPage() {
             </button>
             <button type="button" onClick={() => setActiveTab('workshop')} className={tabClass('workshop')}>
               Workshop Registrations
-              {workshopRegistrations.filter((r) => r.status === 'registered').length > 0 && (
+              {workshopRegistrations.filter((r) => r.status === 'pending_verification').length > 0 && (
                 <span className="ml-1.5 inline-flex items-center justify-center min-w-[1.25rem] h-5 px-1 rounded-full bg-navy text-gold text-[10px] font-bold">
-                  {workshopRegistrations.filter((r) => r.status === 'registered').length}
+                  {workshopRegistrations.filter((r) => r.status === 'pending_verification').length}
                 </span>
               )}
             </button>
@@ -1293,8 +1319,8 @@ export default function AdminPage() {
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-10">
               {[
                 { label: 'Total', value: workshopRegistrations.length, color: 'text-navy' },
-                { label: 'Registered', value: workshopRegistrations.filter((r) => r.status === 'registered').length, color: 'text-blue-600' },
-                { label: 'Payment Confirmed', value: workshopRegistrations.filter((r) => r.status === 'payment_confirmed').length, color: 'text-emerald-600' },
+                { label: 'Pending Verification', value: workshopRegistrations.filter((r) => r.status === 'pending_verification').length, color: 'text-amber-600' },
+                { label: 'Verified', value: workshopRegistrations.filter((r) => r.status === 'verified').length, color: 'text-emerald-600' },
                 { label: 'Cancelled', value: workshopRegistrations.filter((r) => r.status === 'cancelled').length, color: 'text-red-500' },
               ].map((s) => (
                 <div key={s.label} className="bg-white border border-gray-100 rounded-sm shadow-sm px-6 py-5">
@@ -1329,6 +1355,7 @@ export default function AdminPage() {
                           'City',
                           'Phone',
                           'Payment Method',
+                          'Receipt',
                           'Registration Date',
                           'Status',
                           '',
@@ -1370,6 +1397,20 @@ export default function AdminPage() {
                               {PAYMENT_METHOD_LABELS[reg.payment_method] ?? reg.payment_method}
                             </p>
                           </td>
+                          <td className="px-5 py-4">
+                            {reg.receipt_url ? (
+                              <a
+                                href={reg.receipt_url}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="font-body text-sm font-semibold text-gold hover:underline whitespace-nowrap"
+                              >
+                                View slip
+                              </a>
+                            ) : (
+                              <span className="font-body text-gray-300 text-sm">—</span>
+                            )}
+                          </td>
                           <td className="px-5 py-4 whitespace-nowrap">
                             <p className="font-body text-gray-500 text-sm">
                               {new Date(reg.created_at).toLocaleDateString('en-GB', {
@@ -1388,8 +1429,9 @@ export default function AdminPage() {
                                   WORKSHOP_STATUS_STYLES[reg.status] ?? 'bg-gray-50 text-gray-600 border-gray-200'
                                 }`}
                               >
-                                <option value="registered">Registered</option>
-                                <option value="payment_confirmed">Payment Confirmed</option>
+                                <option value="pending_verification">Pending Verification</option>
+                                <option value="verified">Verified</option>
+                                <option value="registered">Registered (Cash)</option>
                                 <option value="cancelled">Cancelled</option>
                               </select>
                               <svg

@@ -10,8 +10,13 @@ create table if not exists public.workshop_registrations (
   phone text not null,
   email text,
   payment_method text not null,
+  receipt_url text,
   status text not null default 'registered'
 );
+
+-- If the table already exists, add the receipt column.
+alter table public.workshop_registrations
+  add column if not exists receipt_url text;
 
 alter table public.workshop_registrations enable row level security;
 
@@ -36,3 +41,23 @@ create policy "Authenticated users can delete workshop registrations"
   on public.workshop_registrations for delete
   to authenticated
   using (true);
+
+-- ---------------------------------------------------------------------------
+-- Storage bucket for EasyPaisa payment receipts
+-- ---------------------------------------------------------------------------
+
+-- Public bucket so admins can open receipt links directly.
+insert into storage.buckets (id, name, public)
+values ('workshop-receipts', 'workshop-receipts', true)
+on conflict (id) do nothing;
+
+-- Anyone can upload their payment receipt during registration.
+create policy "Anyone can upload workshop receipts"
+  on storage.objects for insert
+  to anon, authenticated
+  with check (bucket_id = 'workshop-receipts');
+
+-- Anyone can read receipts (bucket is public).
+create policy "Public can read workshop receipts"
+  on storage.objects for select
+  using (bucket_id = 'workshop-receipts');
