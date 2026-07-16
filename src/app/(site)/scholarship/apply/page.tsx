@@ -5,6 +5,7 @@ import {
   HeartHandshake,
   Mic,
   Sprout,
+  Users,
   CheckCircle,
   Upload,
   ArrowRight,
@@ -15,21 +16,30 @@ import { supabase } from '@/lib/supabase'
 
 // ── Scholarship config ──────────────────────────────────────────────────────
 
-type RequiredDoc = {
+type DocColumn =
+  | 'death_or_disability_cert_url'
+  | 'residence_photo_url'
+  | 'single_mother_proof_url'
+  | 'report_card_url'
+  | 'additional_documents_url'
+
+type ScholarshipDoc = {
   label: string
-  column: 'death_or_disability_cert_url' | 'residence_photo_url'
+  column: DocColumn
   hint: string
+  required: boolean
 }
 
 type ScholarshipOption = {
-  value: 'basheer_memorial' | 'asif_jah_bahadur' | 'umeed_e_naseem'
+  value: 'basheer_memorial' | 'asif_jah_bahadur' | 'umeed_e_naseem' | 'almas_asif_sole_grant'
   name: string
   tagline: string
   Icon: typeof HeartHandshake
   accent: { bar: string; iconBg: string; icon: string; ring: string }
   /** Whether to ask for report cards and certificates (skipped for street-connected children). */
   collectsAcademicRecords: boolean
-  requiredDoc: RequiredDoc | null
+  /** Documents asked for only by this scholarship, each saved to its own column. */
+  docs: ScholarshipDoc[]
 }
 
 const SCHOLARSHIPS: ScholarshipOption[] = [
@@ -40,11 +50,14 @@ const SCHOLARSHIPS: ScholarshipOption[] = [
     Icon: HeartHandshake,
     accent: { bar: 'bg-blue-400', iconBg: 'bg-blue-50', icon: 'text-blue-500', ring: 'ring-blue-400' },
     collectsAcademicRecords: true,
-    requiredDoc: {
-      label: 'Death Certificate or Disability Certificate',
-      column: 'death_or_disability_cert_url',
-      hint: 'Upload the death certificate or the disability certificate of the primary earner.',
-    },
+    docs: [
+      {
+        label: 'Death Certificate or Disability Certificate',
+        column: 'death_or_disability_cert_url',
+        hint: 'Upload the death certificate or the disability certificate of the primary earner.',
+        required: true,
+      },
+    ],
   },
   {
     value: 'asif_jah_bahadur',
@@ -53,7 +66,7 @@ const SCHOLARSHIPS: ScholarshipOption[] = [
     Icon: Mic,
     accent: { bar: 'bg-amber-400', iconBg: 'bg-amber-50', icon: 'text-amber-600', ring: 'ring-amber-400' },
     collectsAcademicRecords: true,
-    requiredDoc: null,
+    docs: [],
   },
   {
     value: 'umeed_e_naseem',
@@ -62,11 +75,45 @@ const SCHOLARSHIPS: ScholarshipOption[] = [
     Icon: Sprout,
     accent: { bar: 'bg-emerald-400', iconBg: 'bg-emerald-50', icon: 'text-emerald-600', ring: 'ring-emerald-400' },
     collectsAcademicRecords: false,
-    requiredDoc: {
-      label: 'Picture of Current Residence',
-      column: 'residence_photo_url',
-      hint: 'Upload a clear photo of the child’s current place of residence.',
-    },
+    docs: [
+      {
+        label: 'Picture of Current Residence',
+        column: 'residence_photo_url',
+        hint: 'Upload a clear photo of the child’s current place of residence.',
+        required: true,
+      },
+    ],
+  },
+  {
+    value: 'almas_asif_sole_grant',
+    name: 'Almas Asif Sole Grant Scholarship Program',
+    tagline:
+      'Supporting single mothers with limited financial means to give their children access to quality education',
+    Icon: Users,
+    accent: { bar: 'bg-purple-300', iconBg: 'bg-purple-50', icon: 'text-purple-500', ring: 'ring-purple-300' },
+    // Report cards are collected below as a single optional upload, so the
+    // shared academic-records block is skipped.
+    collectsAcademicRecords: false,
+    docs: [
+      {
+        label: 'Proof of Single Mother Status',
+        column: 'single_mother_proof_url',
+        hint: 'Upload a divorce certificate, court document, or any official document proving single mother status.',
+        required: true,
+      },
+      {
+        label: 'Student Report Card',
+        column: 'report_card_url',
+        hint: 'Upload the most recent report card if available.',
+        required: false,
+      },
+      {
+        label: 'Additional Supporting Documents',
+        column: 'additional_documents_url',
+        hint: 'Upload any additional documents that support your application such as financial statements, affidavits, or other relevant proof.',
+        required: false,
+      },
+    ],
   },
 ]
 
@@ -297,7 +344,7 @@ export default function ScholarshipApplyPage() {
   const [guardianIds, setGuardianIds] = useState<File[]>([])
   const [reportCards, setReportCards] = useState<File[]>([])
   const [certificates, setCertificates] = useState<File[]>([])
-  const [requiredDocs, setRequiredDocs] = useState<File[]>([])
+  const [docFiles, setDocFiles] = useState<Partial<Record<DocColumn, File[]>>>({})
   const [supportingDocs, setSupportingDocs] = useState<File[]>([])
   const [declaration, setDeclaration] = useState(false)
 
@@ -307,11 +354,25 @@ export default function ScholarshipApplyPage() {
   const [submitted, setSubmitted] = useState(false)
 
   const selected = SCHOLARSHIPS.find((s) => s.value === scholarshipType) ?? null
+  const isAlmasAsif = selected?.value === 'almas_asif_sole_grant'
 
   function handleChange(
     e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>
   ) {
     setForm((prev) => ({ ...prev, [e.target.name]: e.target.value }))
+  }
+
+  function selectScholarship(value: ScholarshipOption['value']) {
+    setScholarshipType(value)
+    // The Sole Grant never asks about the father, so drop anything already
+    // entered about him rather than carrying it over from another scholarship.
+    if (value === 'almas_asif_sole_grant') {
+      setForm((prev) => ({
+        ...prev,
+        father_name: '',
+        relationship: prev.relationship === 'Father' ? '' : prev.relationship,
+      }))
+    }
   }
 
   function goNext() {
@@ -357,8 +418,11 @@ export default function ScholarshipApplyPage() {
 
   function continueFromDocuments(e: React.FormEvent) {
     e.preventDefault()
-    if (selected?.requiredDoc && requiredDocs.length === 0) {
-      setStepError(`Please upload the required document: ${selected.requiredDoc.label}.`)
+    const missing = (selected?.docs ?? []).find(
+      (doc) => doc.required && (docFiles[doc.column]?.length ?? 0) === 0
+    )
+    if (missing) {
+      setStepError(`Please upload the required document: ${missing.label}.`)
       return
     }
     goNext()
@@ -406,21 +470,29 @@ export default function ScholarshipApplyPage() {
         certificates_url = await uploadFiles(certificates, 'certificates')
       }
 
-      // Scholarship-specific required document → its mapped column.
-      let requiredDocUrls: string[] = []
-      if (selected.requiredDoc && requiredDocs.length > 0) {
-        requiredDocUrls = await uploadFiles(requiredDocs, selected.requiredDoc.column)
+      // Scholarship-specific documents → each into its own mapped column. Columns
+      // belonging to other scholarships stay empty.
+      const docUrls: Record<DocColumn, string[]> = {
+        death_or_disability_cert_url: [],
+        residence_photo_url: [],
+        single_mother_proof_url: [],
+        report_card_url: [],
+        additional_documents_url: [],
+      }
+      for (const doc of selected.docs) {
+        const files = docFiles[doc.column] ?? []
+        if (files.length > 0) {
+          docUrls[doc.column] = await uploadFiles(files, doc.column)
+        }
       }
 
       // Supporting documents at the end — optional, multiple.
       const supporting_documents = await uploadFiles(supportingDocs, 'supporting-documents')
 
-      const requiredColumn = selected.requiredDoc?.column
-
       const { error: insertError } = await supabase.from('scholarship_applications').insert({
         scholarship_type: selected.value,
         student_name: form.student_name.trim(),
-        father_name: form.father_name.trim(),
+        father_name: isAlmasAsif ? null : form.father_name.trim(),
         mother_name: form.mother_name.trim(),
         date_of_birth: pkDateToISO(form.date_of_birth),
         grade_applying_for: form.grade.trim(),
@@ -432,9 +504,7 @@ export default function ScholarshipApplyPage() {
         guardian_id_url,
         academic_records,
         certificates_url,
-        death_or_disability_cert_url:
-          requiredColumn === 'death_or_disability_cert_url' ? requiredDocUrls : [],
-        residence_photo_url: requiredColumn === 'residence_photo_url' ? requiredDocUrls : [],
+        ...docUrls,
         supporting_documents,
         eligibility_description: form.eligibility_description.trim(),
         email: form.email.trim(),
@@ -511,7 +581,7 @@ export default function ScholarshipApplyPage() {
                   <button
                     key={s.value}
                     type="button"
-                    onClick={() => setScholarshipType(s.value)}
+                    onClick={() => selectScholarship(s.value)}
                     className={`w-full text-left bg-white rounded-sm border overflow-hidden flex items-stretch transition-all duration-200 ${
                       isSelected
                         ? `border-transparent ring-2 ${s.accent.ring} shadow-md`
@@ -582,20 +652,24 @@ export default function ScholarshipApplyPage() {
               />
             </div>
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <div className="space-y-1.5">
-                <label className={labelClass}>
-                  Father&apos;s Name <span className="text-gold">*</span>
-                </label>
-                <input
-                  name="father_name"
-                  required
-                  value={form.father_name}
-                  onChange={handleChange}
-                  placeholder="Father's full name"
-                  className={inputClass}
-                />
-              </div>
+            {/* The Almas Asif Sole Grant is for children of single mothers, so the
+                father is never asked about. */}
+            <div className={`grid grid-cols-1 gap-4 ${isAlmasAsif ? '' : 'sm:grid-cols-2'}`}>
+              {!isAlmasAsif && (
+                <div className="space-y-1.5">
+                  <label className={labelClass}>
+                    Father&apos;s Name <span className="text-gold">*</span>
+                  </label>
+                  <input
+                    name="father_name"
+                    required
+                    value={form.father_name}
+                    onChange={handleChange}
+                    placeholder="Father's full name"
+                    className={inputClass}
+                  />
+                </div>
+              )}
               <div className="space-y-1.5">
                 <label className={labelClass}>
                   Mother&apos;s Name <span className="text-gold">*</span>
@@ -735,7 +809,7 @@ export default function ScholarshipApplyPage() {
                   <option value="" disabled>
                     Select relationship
                   </option>
-                  <option>Father</option>
+                  {!isAlmasAsif && <option>Father</option>}
                   <option>Mother</option>
                   <option>Guardian</option>
                 </select>
@@ -818,19 +892,26 @@ export default function ScholarshipApplyPage() {
               </>
             )}
 
-            {/* Scholarship-specific required document */}
-            {selected.requiredDoc && (
+            {/* Scholarship-specific documents */}
+            {selected.docs.length > 0 && (
               <div className={selected.collectsAcademicRecords ? 'border-t border-gray-100 pt-6' : ''}>
                 <p className="font-body text-[11px] uppercase tracking-[0.16em] text-gold font-semibold mb-3">
-                  Required for the {selected.name}
+                  For the {selected.name}
                 </p>
-                <MultiFileField
-                  label={selected.requiredDoc.label}
-                  required
-                  files={requiredDocs}
-                  onChange={setRequiredDocs}
-                  hint={`${selected.requiredDoc.hint} You can upload multiple files.`}
-                />
+                <div className="space-y-6">
+                  {selected.docs.map((doc) => (
+                    <MultiFileField
+                      key={doc.column}
+                      label={doc.label}
+                      required={doc.required}
+                      files={docFiles[doc.column] ?? []}
+                      onChange={(files) =>
+                        setDocFiles((prev) => ({ ...prev, [doc.column]: files }))
+                      }
+                      hint={`${doc.required ? '' : 'Optional — '}${doc.hint} You can upload multiple files.`}
+                    />
+                  ))}
+                </div>
               </div>
             )}
 
@@ -865,7 +946,9 @@ export default function ScholarshipApplyPage() {
 
             <div className="space-y-1.5">
               <label className={labelClass}>
-                Why does your child deserve this scholarship?{' '}
+                {isAlmasAsif
+                  ? 'Please describe your situation and why you need this grant (250 words)'
+                  : 'Why does your child deserve this scholarship?'}{' '}
                 <span className="text-gold">*</span>
               </label>
               <textarea
@@ -874,12 +957,23 @@ export default function ScholarshipApplyPage() {
                 rows={8}
                 value={form.eligibility_description}
                 onChange={handleChange}
-                placeholder="Share your child's story…"
+                placeholder={
+                  isAlmasAsif ? 'Share your situation…' : "Share your child's story…"
+                }
                 className={`${inputClass} resize-none`}
               />
               <p className="font-body text-xs text-gray-400">
-                Please share your child&apos;s situation in your own words (around 200 words). This
-                should be filled out by the parent or guardian.
+                {isAlmasAsif ? (
+                  <>
+                    Explain your circumstances as a single mother and how this grant will impact your
+                    child&apos;s education. Written by parent or guardian.
+                  </>
+                ) : (
+                  <>
+                    Please share your child&apos;s situation in your own words (around 200 words).
+                    This should be filled out by the parent or guardian.
+                  </>
+                )}
               </p>
             </div>
 

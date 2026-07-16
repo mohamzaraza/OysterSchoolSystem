@@ -7,7 +7,7 @@
 create table if not exists public.scholarship_applications (
   id uuid primary key default gen_random_uuid(),
   created_at timestamptz not null default now(),
-  scholarship_type text not null,            -- 'basheer_memorial' | 'asif_jah_bahadur' | 'umeed_e_naseem'
+  scholarship_type text not null,            -- 'basheer_memorial' | 'asif_jah_bahadur' | 'umeed_e_naseem' | 'almas_asif_sole_grant'
   student_name text not null,
   father_name text not null,
   mother_name text not null,
@@ -24,6 +24,10 @@ create table if not exists public.scholarship_applications (
   death_or_disability_cert_url text[] not null default '{}',
   certificates_url text[] not null default '{}',
   residence_photo_url text[] not null default '{}',
+  -- Almas Asif Sole Grant documents
+  single_mother_proof_url text[] not null default '{}',     -- divorce certificate / court document
+  report_card_url text[] not null default '{}',             -- most recent report card
+  additional_documents_url text[] not null default '{}',    -- financial statements, affidavits, etc.
   supporting_documents text[] not null default '{}',        -- any extra documents
   eligibility_description text not null,
   email text not null,

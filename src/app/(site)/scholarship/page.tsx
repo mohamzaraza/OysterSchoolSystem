@@ -7,6 +7,7 @@ import {
   HeartHandshake,
   Mic,
   Sprout,
+  Users,
   Award,
   ClipboardCheck,
   X,
@@ -102,6 +103,27 @@ const scholarships: Scholarship[] = [
       icon: "text-emerald-600",
       solid: "bg-emerald-600 hover:bg-emerald-700 text-white",
       award: "bg-emerald-50 text-emerald-900 border-emerald-200",
+    },
+  },
+  {
+    id: "almas-asif-sole-grant",
+    name: "Almas Asif Sole Grant Scholarship Program",
+    summary:
+      "Supporting single mothers with limited financial means to give their children access to quality education",
+    fullDescription:
+      "The Almas Asif Sole Grant supports single mothers with limited financial means, specifically in cases where the father refuses to contribute toward the child's education. We believe no child should be denied quality education due to circumstances beyond their control.",
+    eligibility:
+      "Single mother with limited financial means where the father refuses to contribute to the child's education.",
+    award: "20% concession on monthly tuition fees.",
+    flyer: "/images/education/scholarships/Almas Asif.jpeg",
+    Icon: Users,
+    accent: {
+      eyebrow: "text-purple-700",
+      bar: "bg-purple-300",
+      iconBg: "bg-purple-50",
+      icon: "text-purple-500",
+      solid: "bg-purple-500 hover:bg-purple-600 text-white",
+      award: "bg-purple-50 text-purple-900 border-purple-200",
     },
   },
 ];
@@ -307,13 +329,13 @@ export default function ScholarshipPage() {
               Our Scholarship Programs
             </h2>
             <p className="font-body text-gray-500 text-lg mt-3 max-w-xl mx-auto">
-              Three distinct programs, each built to support a different journey. Tap any flyer to
+              Four distinct programs, each built to support a different journey. Tap any flyer to
               view it in full.
             </p>
           </FadeInUp>
 
           {/* Cards row */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 items-stretch">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 items-stretch">
             {scholarships.map((scholarship, i) => (
               <ScholarshipCard
                 key={scholarship.id}

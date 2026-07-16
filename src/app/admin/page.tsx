@@ -62,6 +62,9 @@ type ScholarshipApplication = {
   death_or_disability_cert_url: string[] | null
   certificates_url: string[] | null
   residence_photo_url: string[] | null
+  single_mother_proof_url: string[] | null
+  report_card_url: string[] | null
+  additional_documents_url: string[] | null
   supporting_documents: string[] | null
   eligibility_description: string | null
   email: string | null
@@ -127,12 +130,14 @@ const SCHOLARSHIP_LABELS: Record<string, string> = {
   basheer_memorial: 'Mohammed Basheer Memorial',
   asif_jah_bahadur: 'Asif Jah Bahadur Excellence & Oratory',
   umeed_e_naseem: 'Umeed e Naseem',
+  almas_asif_sole_grant: 'Almas Asif Sole Grant',
 }
 
 const SCHOLARSHIP_BADGES: Record<string, string> = {
   basheer_memorial: 'bg-blue-50 text-blue-700 border-blue-200',
   asif_jah_bahadur: 'bg-amber-50 text-amber-800 border-amber-200',
   umeed_e_naseem: 'bg-emerald-50 text-emerald-700 border-emerald-200',
+  almas_asif_sole_grant: 'bg-purple-50 text-purple-700 border-purple-200',
 }
 
 const ADMISSION_STATUS_STYLES: Record<string, string> = {
@@ -1788,14 +1793,19 @@ export default function AdminPage() {
                   Student Information
                 </p>
                 <dl className="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-3">
-                  {[
-                    ["Father's Name", viewingScholarship.father_name],
-                    ["Mother's Name", viewingScholarship.mother_name],
-                    ['Date of Birth', viewingScholarship.date_of_birth],
-                    ['Grade Applying For', viewingScholarship.grade_applying_for],
-                    ['Campus', viewingScholarship.campus],
-                    ['Current School', viewingScholarship.current_school],
-                  ].map(([label, value]) => (
+                  {(
+                    [
+                      // The Sole Grant never collects the father's name.
+                      ...(viewingScholarship.scholarship_type === 'almas_asif_sole_grant'
+                        ? []
+                        : [["Father's Name", viewingScholarship.father_name] as const]),
+                      ["Mother's Name", viewingScholarship.mother_name],
+                      ['Date of Birth', viewingScholarship.date_of_birth],
+                      ['Grade Applying For', viewingScholarship.grade_applying_for],
+                      ['Campus', viewingScholarship.campus],
+                      ['Current School', viewingScholarship.current_school],
+                    ] as const
+                  ).map(([label, value]) => (
                     <div key={label}>
                       <dt className="font-body text-gray-400 text-xs">{label}</dt>
                       <dd className="font-body text-navy text-sm font-medium">{value || '—'}</dd>
@@ -1825,7 +1835,7 @@ export default function AdminPage() {
                   ))}
                   <div className="sm:col-span-2">
                     <dt className="font-body text-gray-400 text-xs">Address</dt>
-                    <dd className="font-body text-navy text-sm font-medium">
+                    <dd className="font-body text-navy text-sm font-medium whitespace-pre-line break-words">
                       {viewingScholarship.address || '—'}
                     </dd>
                   </div>
@@ -1837,7 +1847,7 @@ export default function AdminPage() {
                 <p className="font-body text-gold text-[11px] tracking-widest uppercase font-semibold mb-3">
                   Why the child deserves this scholarship
                 </p>
-                <p className="font-body text-gray-700 text-sm leading-relaxed whitespace-pre-line bg-cream rounded-sm p-4">
+                <p className="font-body text-gray-700 text-sm leading-relaxed whitespace-pre-line break-words bg-cream rounded-sm p-4">
                   {viewingScholarship.eligibility_description || '—'}
                 </p>
               </section>
@@ -1855,6 +1865,9 @@ export default function AdminPage() {
                       ['Death / Disability Certificate', viewingScholarship.death_or_disability_cert_url],
                       ['Certificate', viewingScholarship.certificates_url],
                       ['Residence Photo', viewingScholarship.residence_photo_url],
+                      ['Proof of Single Mother Status', viewingScholarship.single_mother_proof_url],
+                      ['Student Report Card', viewingScholarship.report_card_url],
+                      ['Additional Document', viewingScholarship.additional_documents_url],
                       ['Supporting Doc', viewingScholarship.supporting_documents],
                     ]
                     const links: [string, string][] = []
