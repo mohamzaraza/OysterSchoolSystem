@@ -1,7 +1,7 @@
 "use client";
 import Link from "next/link";
 import Image from "next/image";
-import { MapPin, Mail, Phone, Facebook, Twitter, Instagram, Youtube } from "lucide-react";
+import { MapPin, Mail, Phone, Facebook, Twitter, Instagram, Youtube, Lock } from "lucide-react";
 import logoImg from "@/assets/website-logo-one.png";
 import { useLang } from "@/context/LanguageContext";
 import { useT } from "@/translations";
@@ -103,7 +103,10 @@ export default function Footer() {
 
         <div className="border-t border-navy-light mt-10 pt-6 flex flex-col md:flex-row items-center justify-between gap-2">
           <p className="font-body text-xs text-gray-500">{tx.copyright}</p>
-          <p className="font-body text-xs text-gray-500">{tx.builtWith}</p>
+          <Link href="/admin" className="font-body text-xs text-gray-600 flex items-center gap-1">
+            <Lock size={12} />
+            Staff Portal
+          </Link>
         </div>
       </div>
     </footer>

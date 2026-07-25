@@ -114,7 +114,6 @@ const translations = {
       high: { name: "High School Campus", address: "395 Street 36, Block C, PWD" },
       contactTitle: "Get In Touch",
       copyright: "© 2026 Oyster School System. All rights reserved.",
-      builtWith: "Built with ❤️ for quality education in Pakistan",
     },
   },
 
@@ -231,7 +230,6 @@ const translations = {
       high: { name: "ہائی اسکول کیمپس", address: "۳۹۵ گلی ۳۶، بلاک سی، PWD" },
       contactTitle: "رابطہ کریں",
       copyright: "© ۲۰۲۶ آئسٹر اسکول سسٹم۔ جملہ حقوق محفوظ ہیں۔",
-      builtWith: "پاکستان میں معیاری تعلیم کے لیے ❤️ کے ساتھ بنایا گیا",
     },
   },
 } as const;
