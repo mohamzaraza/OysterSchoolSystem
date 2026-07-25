@@ -24,9 +24,17 @@ type AdmissionEnquiry = {
   id: string
   created_at: string
   student_name: string
-  level: string
+  date_of_birth: string | null
+  gender: string | null
+  level: string | null
+  class: string | null
+  previous_school: string | null
   parent_name: string
+  relationship: string | null
   phone: string
+  email: string | null
+  preferred_campus: string | null
+  heard_from: string | null
   status: string
 }
 
@@ -274,7 +282,7 @@ export default function AdminPage() {
     setAdmissionsLoading(true)
     const { data } = await supabase
       .from('admissions')
-      .select('id, created_at, student_name, level, parent_name, phone, status')
+      .select('*')
       .order('created_at', { ascending: false })
     if (data) setAdmissions(data)
     setAdmissionsLoading(false)
@@ -940,10 +948,10 @@ export default function AdminPage() {
             ) : (
               <div className="bg-white border border-gray-100 rounded-sm shadow-sm overflow-hidden">
                 <div className="overflow-x-auto">
-                  <table className="w-full text-left min-w-[860px]">
+                  <table className="w-full text-left min-w-[1400px]">
                     <thead>
                       <tr className="bg-navy">
-                        {['Student Name', 'Level', 'Parent Name', 'Phone', 'Date Submitted', 'Status', ''].map((h) => (
+                        {['Student', 'Date of Birth', 'Level / Class', 'Previous School', 'Parent', 'Contact', 'Preferred Campus', 'Heard From', 'Date Submitted', 'Status', ''].map((h) => (
                           <th
                             key={h}
                             className="font-body text-xs tracking-widest uppercase font-semibold text-white px-5 py-4 whitespace-nowrap"
@@ -960,18 +968,56 @@ export default function AdminPage() {
                             <p className="font-body font-semibold text-navy text-sm">
                               {enq.student_name}
                             </p>
+                            {enq.gender && (
+                              <p className="font-body text-gray-400 text-xs mt-0.5">{enq.gender}</p>
+                            )}
+                          </td>
+                          <td className="px-5 py-4 whitespace-nowrap">
+                            <p className="font-body text-gray-500 text-sm">
+                              {enq.date_of_birth
+                                ? new Date(enq.date_of_birth).toLocaleDateString('en-GB', {
+                                    day: 'numeric',
+                                    month: 'short',
+                                    year: 'numeric',
+                                  })
+                                : '—'}
+                            </p>
                           </td>
                           <td className="px-5 py-4">
                             <p className="font-body text-gray-700 text-sm whitespace-nowrap">
-                              {enq.level}
+                              {enq.level || '—'}
+                            </p>
+                            {enq.class && (
+                              <p className="font-body text-gray-400 text-xs mt-0.5">{enq.class}</p>
+                            )}
+                          </td>
+                          <td className="px-5 py-4">
+                            <p className="font-body text-gray-500 text-sm">
+                              {enq.previous_school || '—'}
                             </p>
                           </td>
                           <td className="px-5 py-4">
                             <p className="font-body text-gray-700 text-sm">{enq.parent_name}</p>
+                            {enq.relationship && (
+                              <p className="font-body text-gray-400 text-xs mt-0.5">{enq.relationship}</p>
+                            )}
                           </td>
                           <td className="px-5 py-4">
                             <p className="font-body text-gray-500 text-sm whitespace-nowrap">
                               {enq.phone}
+                            </p>
+                            {enq.email && (
+                              <p className="font-body text-gray-400 text-xs mt-0.5">{enq.email}</p>
+                            )}
+                          </td>
+                          <td className="px-5 py-4">
+                            <p className="font-body text-gray-500 text-sm">
+                              {enq.preferred_campus || '—'}
+                            </p>
+                          </td>
+                          <td className="px-5 py-4">
+                            <p className="font-body text-gray-500 text-sm whitespace-nowrap">
+                              {enq.heard_from || '—'}
                             </p>
                           </td>
                           <td className="px-5 py-4 whitespace-nowrap">
